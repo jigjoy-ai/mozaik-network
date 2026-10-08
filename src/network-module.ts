@@ -5,8 +5,6 @@ import { CreateNetworkUseCase } from "@application/create-network"
 import { SendEnvelopeUseCase } from "@application/send-envelope"
 import { NetworkRepository } from "@domain/network-repository"
 import { Envelope } from "@domain/envelope"
-import { SituationSpecification } from "./domain/situation-specification"
-import { EnvelopeDelivery } from "@domain/envelope-delivery"
 import { WebSocketEnvelopeDelivery } from "@infrastructure/web-socket-envelope-delivery"
 
 type NetworkModule = {
@@ -49,15 +47,10 @@ const createNetwork = async (name: string) => {
 	return await createNetworkUseCase.execute(name)
 }
 
-const join = async (
-	name: string,
-	capabilities: readonly string[],
-	handlers: SituationSpecification[],
-	networkId: string,
-) => {
+const join = async (name: string, capabilities: readonly string[], networkId: string) => {
 	const { networkRepository, envelopeDelivery } = resolveNetworkModule()
 	const participantJoinUseCase = new ParticipantJoinUseCase(networkRepository, envelopeDelivery)
-	return await participantJoinUseCase.execute(name, capabilities, handlers, networkId)
+	return await participantJoinUseCase.execute(name, capabilities, networkId)
 }
 
 const leave = async (networkId: string, participantId: string) => {

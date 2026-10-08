@@ -1,5 +1,3 @@
-import { SituationSpecification } from "./situation-specification"
-
 export type ParticipantRole = "agent" | "external"
 
 export type ParticipantManifest = {
@@ -11,11 +9,9 @@ export type ParticipantManifest = {
 
 export class Participant {
 	private manifest: ParticipantManifest
-	private handlers: SituationSpecification[]
 
-	constructor(manifest: ParticipantManifest, handlers: SituationSpecification[]) {
+	constructor(manifest: ParticipantManifest) {
 		this.manifest = manifest
-		this.handlers = handlers
 	}
 
 	getManifest(): ParticipantManifest {
@@ -28,13 +24,5 @@ export class Participant {
 
 	getId(): string {
 		return this.manifest.id
-	}
-
-	getHandlers(): SituationSpecification[] {
-		return this.handlers
-	}
-
-	setHandlers(handlers: SituationSpecification[]): void {
-		this.handlers = handlers
 	}
 }

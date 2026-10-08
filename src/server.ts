@@ -37,7 +37,7 @@ server.on("connection", (socket) => {
 						envelopeDelivery.attach(networkId, socket)
 
 						try {
-							const participantId = await join(manifest.name, manifest.capabilities, [], networkId)
+							const participantId = await join(manifest.name, manifest.capabilities, networkId)
 
 							context = { networkId, participantId }
 						} catch (error) {
