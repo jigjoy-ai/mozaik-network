@@ -29,10 +29,10 @@ export class Network {
 		return this.name
 	}
 
-	addParticipant(participant: Participant) {
+	addParticipant(participant: Participant): Envelope {
 		const alreadyExists = this.participants.find((p) => p.getId() === participant.getId())
 
-		if (alreadyExists) return
+		if (alreadyExists) throw new Error("Participant already exists")
 
 		this.participants.push(participant)
 

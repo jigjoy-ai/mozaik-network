@@ -1,12 +1,15 @@
+import { EnvelopeDelivery } from "@domain/envelope-delivery"
 import { NetworkRepository } from "@domain/network-repository"
 import { Participant, ParticipantManifest } from "@domain/participant"
 import { SituationSpecification } from "@domain/situation-specification"
 
 export class ParticipantJoinUseCase {
 	private readonly networkRepository: NetworkRepository
+	private readonly envelopeDelivery: EnvelopeDelivery
 
-	constructor(networkRepository: NetworkRepository) {
+	constructor(networkRepository: NetworkRepository, envelopeDelivery: EnvelopeDelivery) {
 		this.networkRepository = networkRepository
+		this.envelopeDelivery = envelopeDelivery
 	}
 
 	async execute(
@@ -14,7 +17,7 @@ export class ParticipantJoinUseCase {
 		capabilities: readonly string[],
 		specifications: SituationSpecification[],
 		networkId: string,
-	): Promise<void> {
+	): Promise<string> {
 		const network = await this.networkRepository.findById(networkId)
 		if (!network) {
 			throw new Error("Network not found")
@@ -28,8 +31,10 @@ export class ParticipantJoinUseCase {
 		}
 		const participant = new Participant(manifest, specifications)
 
-		const event = network.addParticipant(participant)
-		// TODO: publish event
+		const envelope = network.addParticipant(participant)
 		await this.networkRepository.save(network)
+		await this.envelopeDelivery.broadcast(networkId, envelope)
+
+		return manifest.id
 	}
 }

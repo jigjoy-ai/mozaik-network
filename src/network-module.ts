@@ -6,56 +6,58 @@ import { SendEnvelopeUseCase } from "@application/send-envelope"
 import { NetworkRepository } from "@domain/network-repository"
 import { Envelope } from "@domain/envelope"
 import { SituationSpecification } from "./domain/situation-specification"
+import { EnvelopeDelivery } from "@domain/envelope-delivery"
+import { WebSocketEnvelopeDelivery } from "@infrastructure/web-socket-envelope-delivery"
 
 type NetworkModule = {
 	networkRepository: NetworkRepository
-	//eventPublisher: EventPublisher
+	envelopeDelivery: WebSocketEnvelopeDelivery
 }
 
 type NetworkModuleConfig = {
 	networkRepository?: NetworkRepository
-	//eventPublisher?: EventPublisher
+	envelopeDelivery?: WebSocketEnvelopeDelivery
 }
 
 let module: NetworkModule | undefined
 
 function initNetworkModule(config: NetworkModuleConfig = {}) {
 	if (module) {
-		throw new Error("Space module already initialized")
+		throw new Error("Network module already initialized")
 	}
 
 	const networkRepository = config.networkRepository ?? new InMemoryNetworkRepository()
-	//const eventPublisher = config.eventPublisher ?? new EventPublisher()
+	const envelopeDelivery = config.envelopeDelivery ?? new WebSocketEnvelopeDelivery()
 
 	module = {
 		networkRepository,
-		//eventPublisher,
+		envelopeDelivery,
 	}
 }
 
 export function resolveNetworkModule(): NetworkModule {
 	if (!module) {
-		throw new Error("Space module is not initialized")
+		throw new Error("Network module is not initialized")
 	}
 
 	return module
 }
 
-const createSpace = async (name: string) => {
+const createNetwork = async (name: string) => {
 	const { networkRepository } = resolveNetworkModule()
 	const createNetworkUseCase = new CreateNetworkUseCase(networkRepository)
 	return await createNetworkUseCase.execute(name)
 }
 
-const join = async <TParticipant>(
+const join = async (
 	name: string,
 	capabilities: readonly string[],
 	handlers: SituationSpecification[],
-	spaceId: string,
+	networkId: string,
 ) => {
-	const { networkRepository } = resolveNetworkModule()
-	const participantJoinUseCase = new ParticipantJoinUseCase(networkRepository)
-	return await participantJoinUseCase.execute(name, capabilities, handlers, spaceId)
+	const { networkRepository, envelopeDelivery } = resolveNetworkModule()
+	const participantJoinUseCase = new ParticipantJoinUseCase(networkRepository, envelopeDelivery)
+	return await participantJoinUseCase.execute(name, capabilities, handlers, networkId)
 }
 
 const leave = async (networkId: string, participantId: string) => {
@@ -64,10 +66,10 @@ const leave = async (networkId: string, participantId: string) => {
 	return await participantLeaveUseCase.execute(networkId, participantId)
 }
 
-const sendEnvelope = async (networkId: string, senderId: string, envelope: Envelope) => {
+const send = async (networkId: string, senderId: string, envelope: Envelope) => {
 	const { networkRepository } = resolveNetworkModule()
 	const sendEnvelopeUseCase = new SendEnvelopeUseCase(networkRepository)
 	return await sendEnvelopeUseCase.execute(networkId, senderId, envelope)
 }
 
-export { createSpace, join, leave, sendEnvelope, initNetworkModule }
+export { createNetwork, join, leave, send, initNetworkModule }
