@@ -54,14 +54,14 @@ const join = async (name: string, capabilities: readonly string[], networkId: st
 }
 
 const leave = async (networkId: string, participantId: string) => {
-	const { networkRepository } = resolveNetworkModule()
-	const participantLeaveUseCase = new ParticipantLeaveUseCase(networkRepository)
+	const { networkRepository, envelopeDelivery } = resolveNetworkModule()
+	const participantLeaveUseCase = new ParticipantLeaveUseCase(networkRepository, envelopeDelivery)
 	return await participantLeaveUseCase.execute(networkId, participantId)
 }
 
 const send = async (networkId: string, senderId: string, envelope: Envelope) => {
-	const { networkRepository } = resolveNetworkModule()
-	const sendEnvelopeUseCase = new SendEnvelopeUseCase(networkRepository)
+	const { networkRepository, envelopeDelivery } = resolveNetworkModule()
+	const sendEnvelopeUseCase = new SendEnvelopeUseCase(networkRepository, envelopeDelivery)
 	return await sendEnvelopeUseCase.execute(networkId, senderId, envelope)
 }
 

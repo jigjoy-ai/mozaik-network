@@ -1,8 +1,12 @@
 import { NetworkRepository } from "@domain/network-repository"
 import { Envelope } from "@domain/envelope"
+import { EnvelopeDelivery } from "@domain/envelope-delivery"
 
 export class SendEnvelopeUseCase {
-	constructor(private readonly networkRepository: NetworkRepository) {}
+	constructor(
+		private readonly networkRepository: NetworkRepository,
+		private readonly envelopeDelivery: EnvelopeDelivery,
+	) {}
 
 	async execute(networkId: string, senderId: string, envelope: Envelope): Promise<void> {
 		const network = await this.networkRepository.findById(networkId)
@@ -15,7 +19,8 @@ export class SendEnvelopeUseCase {
 		}
 
 		network.sendEnvelope(envelope)
-		// TODO: publish event
+		await this.envelopeDelivery.broadcast(networkId, envelope)
+
 		await this.networkRepository.save(network)
 	}
 }
