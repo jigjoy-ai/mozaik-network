@@ -4,8 +4,9 @@ import { EnvelopeDelivery } from "@domain/envelope-delivery"
 
 export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 	private readonly connections = new Map<string, Set<WebSocket>>()
+	private readonly participantBySocket = new WeakMap<WebSocket, string>()
 
-	attach(networkId: string, socket: WebSocket): void {
+	attach(networkId: string, socket: WebSocket, participantId: string): void {
 		let sockets = this.connections.get(networkId)
 
 		if (!sockets) {
@@ -16,8 +17,10 @@ export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 		if (sockets.has(socket)) return
 
 		sockets.add(socket)
+		this.participantBySocket.set(socket, participantId)
 
 		socket.once("close", () => {
+			this.participantBySocket.delete(socket)
 			sockets.delete(socket)
 
 			if (sockets.size === 0) {
@@ -31,19 +34,29 @@ export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 		if (!sockets) return
 
 		sockets.delete(socket)
+		this.participantBySocket.delete(socket)
 
 		if (sockets.size === 0) {
 			this.connections.delete(networkId)
 		}
 	}
 
-	async broadcast(networkId: string, envelope: Envelope): Promise<void> {
+	async deliver(envelope: Envelope, recipientIds: readonly string[]): Promise<void> {
+		const networkId = envelope.getNetworkId()
 		const sockets = this.connections.get(networkId)
-		if (!sockets) return
+		if (!sockets || recipientIds.length === 0) return
 
+		const recipients = new Set(recipientIds)
 		const message = JSON.stringify(envelope)
 
-		await Promise.all([...sockets].map((socket) => this.send(socket, message)))
+		await Promise.all(
+			[...sockets]
+				.filter((socket) => {
+					const participantId = this.participantBySocket.get(socket)
+					return participantId !== undefined && recipients.has(participantId)
+				})
+				.map((socket) => this.send(socket, message)),
+		)
 	}
 
 	private send(socket: WebSocket, message: string): Promise<void> {

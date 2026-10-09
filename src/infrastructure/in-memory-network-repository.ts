@@ -2,7 +2,7 @@ import { Network } from "@domain/network"
 import { NetworkRepository } from "@domain/network-repository"
 
 export class InMemoryNetworkRepository implements NetworkRepository {
-	private networks: Network[] = []
+	private networks: Network[] = [Network.rehydrate({ id: "1", name: "Network 1", participantIds: [] })]
 
 	async save(network: Network): Promise<void> {
 		this.networks.push(network)

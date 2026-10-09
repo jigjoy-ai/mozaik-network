@@ -1,26 +1,20 @@
+import { EnvelopeDistribution } from "@application/services/envelope-distribution"
+import { EnvelopeFactory } from "@domain/envelope-factory"
 import { NetworkRepository } from "@domain/network-repository"
-import { Envelope } from "@domain/envelope"
-import { EnvelopeDelivery } from "@domain/envelope-delivery"
 
 export class SendEnvelopeUseCase {
 	constructor(
-		private readonly networkRepository: NetworkRepository,
-		private readonly envelopeDelivery: EnvelopeDelivery,
+		private readonly networks: NetworkRepository,
+		private readonly distribution: EnvelopeDistribution,
 	) {}
 
-	async execute(networkId: string, senderId: string, envelope: Envelope): Promise<void> {
-		const network = await this.networkRepository.findById(networkId)
-		if (!network) {
-			throw new Error("Network not found")
-		}
-		const sender = network.getParticipant(senderId)
-		if (!sender) {
-			throw new Error("Sender not found")
-		}
+	async execute(networkId: string, senderId: string, message: string): Promise<void> {
+		const network = await this.networks.findById(networkId)
+		if (!network) throw new Error("Network not found")
 
-		network.sendEnvelope(envelope)
-		await this.envelopeDelivery.broadcast(networkId, envelope)
+		const envelope = EnvelopeFactory.messageSent(networkId, senderId, message)
+		network.validateEnvelope(envelope)
 
-		await this.networkRepository.save(network)
+		await this.distribution.toOtherParticipants(network, envelope, senderId)
 	}
 }

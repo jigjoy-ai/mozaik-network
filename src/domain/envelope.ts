@@ -1,14 +1,50 @@
-import { ParticipantManifest } from "@domain/participant"
-
-export type Envelope<TType extends string = string, TPayload = unknown> = {
-	readonly type: TType
-	readonly senderId: string
-	readonly createdAt: Date
-	readonly payload: TPayload
+export type EnvelopeRecord<TType extends string = string, TPayload = unknown> = {
+	id: string
+	networkId: string
+	type: TType
+	senderId: string
+	createdAt: Date
+	payload: TPayload
 }
 
-export type ParticipantJoined = Envelope<"participant.joined", ParticipantManifest>
+export class Envelope<TType extends string = string, TPayload = unknown> {
+	private id: string
+	private networkId: string
+	private type: TType
+	private senderId: string
+	private createdAt: Date
+	private payload: TPayload
 
-export type ParticipantLeft = Envelope<"participant.left", ParticipantManifest>
+	constructor(id: string, networkId: string, type: TType, senderId: string, createdAt: Date, payload: TPayload) {
+		this.id = id
+		this.networkId = networkId
+		this.type = type
+		this.senderId = senderId
+		this.createdAt = createdAt
+		this.payload = payload
+	}
 
-export type MessageSent = Envelope<"message.sent", { message: string }>
+	getId(): string {
+		return this.id
+	}
+
+	getNetworkId(): string {
+		return this.networkId
+	}
+
+	getType(): TType {
+		return this.type
+	}
+
+	getSenderId(): string {
+		return this.senderId
+	}
+
+	getCreatedAt(): Date {
+		return new Date(this.createdAt)
+	}
+
+	getPayload(): TPayload {
+		return structuredClone(this.payload)
+	}
+}
