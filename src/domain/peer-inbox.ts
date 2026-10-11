@@ -1,6 +1,6 @@
 import { Envelope } from "@domain/envelope"
 
-export class ParticipantInbox {
+export class PeerInbox {
 	private envelopes: Envelope[] = []
 
 	receive(envelope: Envelope): void {

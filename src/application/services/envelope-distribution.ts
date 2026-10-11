@@ -5,12 +5,12 @@ import { Network } from "@domain/network"
 export class EnvelopeDistribution {
 	constructor(private readonly delivery: EnvelopeDelivery) {}
 
-	async toAllParticipants(network: Network, envelope: Envelope): Promise<void> {
-		await this.delivery.deliver(envelope, network.getParticipantIds())
+	async toAllPeers(network: Network, envelope: Envelope): Promise<void> {
+		await this.delivery.deliver(envelope, network.getPeerIds())
 	}
 
-	async toOtherParticipants(network: Network, envelope: Envelope, senderId: string): Promise<void> {
-		const recipientIds = network.getParticipantIds().filter((id) => id !== senderId)
+	async toOtherPeers(network: Network, envelope: Envelope, senderId: string): Promise<void> {
+		const recipientIds = network.getPeerIds().filter((id) => id !== senderId)
 		await this.delivery.deliver(envelope, recipientIds)
 	}
 }

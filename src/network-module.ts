@@ -1,29 +1,29 @@
-import { ConnectParticipantUseCase } from "@application/connect-participant"
+import { ConnectPeerUseCase } from "@application/connect-peer"
+import { DisconnectPeerUseCase } from "@application/disconnect-peer"
+import { CreatePeerUseCase } from "@application/create-peer"
 import { InMemoryNetworkRepository } from "@infrastructure/in-memory-network-repository"
-import { DisconnectParticipantUseCase } from "@application/disconnect-participant"
 import { CreateNetworkUseCase } from "@application/create-network"
-import { CreateParticipantUseCase } from "@application/create-participant"
-import { ParticipantRole } from "@domain/participant-role"
+import { PeerRole } from "@domain/peer-role"
 import { SendEnvelopeUseCase } from "@application/send-envelope"
 import { EnvelopeDistribution } from "@application/services/envelope-distribution"
 import { NetworkRepository } from "@domain/network-repository"
 import { WebSocketEnvelopeDelivery } from "@infrastructure/web-socket-envelope-delivery"
-import { ParticipantRepository } from "@domain/participant-repository"
+import { PeerRepository } from "@domain/peer-repository"
 import { EnvelopeRepository } from "@domain/envelope-repositories"
 import { InMemoryEnvelopeRepository } from "@infrastructure/in-memory-envelope-repository"
-import { InMemoryParticipantRepository } from "@infrastructure/in-memory-participant-repository"
-import { ParticipantJoined, ParticipantLeft } from "@domain/built-in-envelopers"
+import { InMemoryPeerRepository } from "@infrastructure/in-memory-peer-repository"
+import { PeerJoined, PeerLeft } from "@domain/built-in-envelopers"
 
 type NetworkModule = {
 	networkRepository: NetworkRepository
-	participantRepository: ParticipantRepository
+	peerRepository: PeerRepository
 	envelopeRepository: EnvelopeRepository
 	envelopeDelivery: WebSocketEnvelopeDelivery
 }
 
 type NetworkModuleConfig = {
 	networkRepository?: NetworkRepository
-	participantRepository?: ParticipantRepository
+	peerRepository?: PeerRepository
 	envelopeRepository?: EnvelopeRepository
 	envelopeDelivery?: WebSocketEnvelopeDelivery
 }
@@ -37,12 +37,12 @@ function initNetworkModule(config: NetworkModuleConfig = {}) {
 
 	const networkRepository = config.networkRepository ?? new InMemoryNetworkRepository()
 	const envelopeDelivery = config.envelopeDelivery ?? new WebSocketEnvelopeDelivery()
-	const participantRepository = config.participantRepository ?? new InMemoryParticipantRepository()
+	const peerRepository = config.peerRepository ?? new InMemoryPeerRepository()
 	const envelopeRepository = config.envelopeRepository ?? new InMemoryEnvelopeRepository()
 
 	module = {
 		networkRepository,
-		participantRepository,
+		peerRepository,
 		envelopeRepository,
 		envelopeDelivery,
 	}
@@ -62,10 +62,10 @@ const createNetwork = async (name: string) => {
 	return await createNetworkUseCase.execute(name)
 }
 
-const createParticipant = async (name: string, role: ParticipantRole, capabilities: readonly string[] = []) => {
-	const { participantRepository } = resolveNetworkModule()
-	const createParticipantUseCase = new CreateParticipantUseCase(participantRepository)
-	return await createParticipantUseCase.execute(name, role, capabilities)
+const createPeer = async (name: string, role: PeerRole, capabilities: readonly string[] = []) => {
+	const { peerRepository } = resolveNetworkModule()
+	const createPeerUseCase = new CreatePeerUseCase(peerRepository)
+	return await createPeerUseCase.execute(name, role, capabilities)
 }
 
 function createEnvelopeDistribution(): EnvelopeDistribution {
@@ -73,20 +73,16 @@ function createEnvelopeDistribution(): EnvelopeDistribution {
 	return new EnvelopeDistribution(envelopeDelivery)
 }
 
-const connect = async (networkId: string, participantId: string): Promise<ParticipantJoined> => {
-	const { networkRepository, participantRepository } = resolveNetworkModule()
-	const participantJoinUseCase = new ConnectParticipantUseCase(
-		networkRepository,
-		participantRepository,
-		createEnvelopeDistribution(),
-	)
-	return await participantJoinUseCase.execute(networkId, participantId)
+const connect = async (networkId: string, peerId: string): Promise<PeerJoined> => {
+	const { networkRepository, peerRepository } = resolveNetworkModule()
+	const connectPeerUseCase = new ConnectPeerUseCase(networkRepository, peerRepository, createEnvelopeDistribution())
+	return await connectPeerUseCase.execute(networkId, peerId)
 }
 
-const disconnect = async (networkId: string, participantId: string): Promise<ParticipantLeft> => {
+const disconnect = async (networkId: string, peerId: string): Promise<PeerLeft> => {
 	const { networkRepository } = resolveNetworkModule()
-	const participantLeaveUseCase = new DisconnectParticipantUseCase(networkRepository, createEnvelopeDistribution())
-	return await participantLeaveUseCase.execute(networkId, participantId)
+	const disconnectPeerUseCase = new DisconnectPeerUseCase(networkRepository, createEnvelopeDistribution())
+	return await disconnectPeerUseCase.execute(networkId, peerId)
 }
 
 const send = async (networkId: string, senderId: string, message: string) => {
@@ -95,4 +91,4 @@ const send = async (networkId: string, senderId: string, message: string) => {
 	return await sendEnvelopeUseCase.execute(networkId, senderId, message)
 }
 
-export { createNetwork, createParticipant, connect, disconnect, send, initNetworkModule }
+export { createNetwork, createPeer, connect, disconnect, send, initNetworkModule }

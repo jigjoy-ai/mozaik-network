@@ -4,9 +4,9 @@ import { EnvelopeDelivery } from "@domain/envelope-delivery"
 
 export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 	private readonly connections = new Map<string, Set<WebSocket>>()
-	private readonly participantBySocket = new WeakMap<WebSocket, string>()
+	private readonly peerBySocket = new WeakMap<WebSocket, string>()
 
-	attach(networkId: string, socket: WebSocket, participantId: string): void {
+	attach(networkId: string, socket: WebSocket, peerId: string): void {
 		let sockets = this.connections.get(networkId)
 
 		if (!sockets) {
@@ -17,10 +17,10 @@ export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 		if (sockets.has(socket)) return
 
 		sockets.add(socket)
-		this.participantBySocket.set(socket, participantId)
+		this.peerBySocket.set(socket, peerId)
 
 		socket.once("close", () => {
-			this.participantBySocket.delete(socket)
+			this.peerBySocket.delete(socket)
 			sockets.delete(socket)
 
 			if (sockets.size === 0) {
@@ -34,7 +34,7 @@ export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 		if (!sockets) return
 
 		sockets.delete(socket)
-		this.participantBySocket.delete(socket)
+		this.peerBySocket.delete(socket)
 
 		if (sockets.size === 0) {
 			this.connections.delete(networkId)
@@ -52,8 +52,8 @@ export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 		await Promise.all(
 			[...sockets]
 				.filter((socket) => {
-					const participantId = this.participantBySocket.get(socket)
-					return participantId !== undefined && recipients.has(participantId)
+					const peerId = this.peerBySocket.get(socket)
+					return peerId !== undefined && recipients.has(peerId)
 				})
 				.map((socket) => this.send(socket, message)),
 		)

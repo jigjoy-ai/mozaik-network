@@ -15,6 +15,6 @@ export class SendEnvelopeUseCase {
 		const envelope = EnvelopeFactory.messageSent(networkId, senderId, message)
 		network.validateEnvelope(envelope)
 
-		await this.distribution.toOtherParticipants(network, envelope, senderId)
+		await this.distribution.toOtherPeers(network, envelope, senderId)
 	}
 }

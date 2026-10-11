@@ -1,6 +1,6 @@
-import { MessageSent, ParticipantJoined, ParticipantLeft } from "./built-in-envelopers"
+import { MessageSent, PeerJoined, PeerLeft } from "./built-in-envelopers"
 import { Envelope } from "./envelope"
-import { ParticipantManifest } from "./participant-manifest"
+import { PeerManifest } from "./peer-manifest"
 
 export class EnvelopeFactory {
 	static create<TType extends string, TPayload>(
@@ -14,12 +14,12 @@ export class EnvelopeFactory {
 		return new Envelope(id, networkId, type, senderId, createdAt, payload)
 	}
 
-	static participantJoined(networkId: string, manifest: ParticipantManifest): ParticipantJoined {
-		return this.create(networkId, manifest.id, "participant.joined", manifest)
+	static peerJoined(networkId: string, manifest: PeerManifest): PeerJoined {
+		return this.create(networkId, manifest.id, "peer.joined", manifest)
 	}
 
-	static participantLeft(networkId: string, participantId: string): ParticipantLeft {
-		return this.create(networkId, participantId, "participant.left", { participantId })
+	static peerLeft(networkId: string, peerId: string): PeerLeft {
+		return this.create(networkId, peerId, "peer.left", { peerId })
 	}
 
 	static messageSent(networkId: string, senderId: string, message: string): MessageSent {

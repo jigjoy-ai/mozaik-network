@@ -1,24 +1,24 @@
 import {
 	connect,
 	createNetwork,
-	createParticipant,
+	createPeer,
 	disconnect,
 	initNetworkModule,
 	resolveNetworkModule,
 	send,
 } from "src/network-module"
-import { ParticipantRole } from "@domain/participant-role"
+import { PeerRole } from "@domain/peer-role"
 import { createServer, IncomingMessage, ServerResponse } from "node:http"
 import { WebSocketServer } from "ws"
 
 type ConnectionContext = {
 	networkId: string
-	participantId: string
+	peerId: string
 }
 
 const PORT = 3000
 
-const participantRoles = new Set<ParticipantRole>(["user", "agent", "external"])
+const peerRoles = new Set<PeerRole>(["user", "agent", "external"])
 
 initNetworkModule()
 
@@ -59,7 +59,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 			return
 		}
 
-		if (req.url === "/participants") {
+		if (req.url === "/peers") {
 			const body = (await readJsonBody(req)) as {
 				name?: unknown
 				role?: unknown
@@ -71,7 +71,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 				return
 			}
 
-			if (typeof body.role !== "string" || !participantRoles.has(body.role as ParticipantRole)) {
+			if (typeof body.role !== "string" || !peerRoles.has(body.role as PeerRole)) {
 				sendJson(res, 400, { error: "role must be user, agent, or external" })
 				return
 			}
@@ -80,8 +80,8 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 				? body.capabilities.filter((item): item is string => typeof item === "string")
 				: []
 
-			const participant = await createParticipant(body.name.trim(), body.role as ParticipantRole, capabilities)
-			sendJson(res, 201, participant.getManifest())
+			const peer = await createPeer(body.name.trim(), body.role as PeerRole, capabilities)
+			sendJson(res, 201, peer.getManifest())
 			return
 		}
 
@@ -110,11 +110,11 @@ wss.on("connection", (socket) => {
 	async function leave(): Promise<void> {
 		if (!context) return
 
-		const { networkId, participantId } = context
+		const { networkId, peerId } = context
 		context = undefined
 
 		envelopeDelivery.detach(networkId, socket)
-		await disconnect(networkId, participantId)
+		await disconnect(networkId, peerId)
 	}
 
 	socket.on("message", (data) => {
@@ -123,7 +123,7 @@ wss.on("connection", (socket) => {
 				const message = JSON.parse(data.toString())
 
 				switch (message.type) {
-					case "participant.join": {
+					case "peer.join": {
 						const { networkId, senderId } = message
 
 						envelopeDelivery.attach(networkId, socket, senderId)
@@ -131,7 +131,7 @@ wss.on("connection", (socket) => {
 						try {
 							await connect(networkId, senderId)
 
-							context = { networkId, participantId: senderId }
+							context = { networkId, peerId: senderId }
 						} catch (error) {
 							envelopeDelivery.detach(networkId, socket)
 							throw error
@@ -142,7 +142,7 @@ wss.on("connection", (socket) => {
 
 					case "message.send": {
 						if (!context) {
-							throw new Error("Connection has no participant identity")
+							throw new Error("Connection has no peer identity")
 						}
 
 						const { networkId, senderId, payload } = message
@@ -152,7 +152,7 @@ wss.on("connection", (socket) => {
 						break
 					}
 
-					case "participant.leave":
+					case "peer.leave":
 						await leave()
 						socket.close(1000, "Left network")
 						break

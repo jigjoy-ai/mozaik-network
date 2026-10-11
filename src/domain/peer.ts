@@ -1,16 +1,16 @@
 import { Envelope } from "@domain/envelope"
-import { ParticipantManifest } from "@domain/participant-manifest"
+import { PeerManifest } from "@domain/peer-manifest"
 
-export type ParticipantRecord = {
-	manifest: ParticipantManifest
+export type PeerRecord = {
+	manifest: PeerManifest
 	inbox: Envelope[]
 }
 
-export class Participant {
-	private manifest: ParticipantManifest
+export class Peer {
+	private manifest: PeerManifest
 	private inbox: Envelope[]
 
-	private constructor(manifest: ParticipantManifest, inbox: Envelope[] = []) {
+	private constructor(manifest: PeerManifest, inbox: Envelope[] = []) {
 		this.manifest = { ...manifest }
 		this.inbox = [...inbox]
 	}
@@ -19,7 +19,7 @@ export class Participant {
 		return this.manifest.id
 	}
 
-	getManifest(): ParticipantManifest {
+	getManifest(): PeerManifest {
 		return { ...this.manifest }
 	}
 
@@ -35,18 +35,18 @@ export class Participant {
 		return [...this.inbox]
 	}
 
-	toRecord(): ParticipantRecord {
+	toRecord(): PeerRecord {
 		return {
 			manifest: this.getManifest(),
 			inbox: this.getInbox(),
 		}
 	}
 
-	static create(manifest: ParticipantManifest): Participant {
-		return new Participant(manifest)
+	static create(manifest: PeerManifest): Peer {
+		return new Peer(manifest)
 	}
 
-	static rehydrate(record: ParticipantRecord): Participant {
-		return new Participant(record.manifest, record.inbox)
+	static rehydrate(record: PeerRecord): Peer {
+		return new Peer(record.manifest, record.inbox)
 	}
 }
