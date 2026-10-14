@@ -9,14 +9,17 @@ import {
 } from "src/network-module"
 import { PeerRole } from "@domain/peer-role"
 import { createServer, IncomingMessage, ServerResponse } from "node:http"
-import { WebSocketServer } from "ws"
+import { WebSocket, WebSocketServer } from "ws"
 
 type ConnectionContext = {
 	networkId: string
 	peerId: string
 }
 
-const PORT = 3000
+const PORT = Number(process.env.PORT ?? 3000)
+
+/** How often each socket is pinged; one that hasn't answered since the last ping is closed. Load balancers drop idle connections (AWS's after 60 seconds). */
+const PING_INTERVAL_MS = 30_000
 
 const peerRoles = new Set<PeerRole>(["user", "agent", "external"])
 
@@ -41,6 +44,12 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
 }
 
 async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	// For the load balancer's health checks.
+	if (req.method === "GET" && req.url === "/healthz") {
+		sendJson(res, 200, { ok: true })
+		return
+	}
+
 	if (req.method !== "POST") {
 		sendJson(res, 405, { error: "Method not allowed" })
 		return
@@ -101,8 +110,27 @@ const httpServer = createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: httpServer })
 
+const alive = new WeakSet<WebSocket>()
+
+const heartbeat = setInterval(() => {
+	for (const socket of wss.clients) {
+		if (!alive.has(socket)) {
+			socket.terminate()
+			continue
+		}
+
+		alive.delete(socket)
+		socket.ping()
+	}
+}, PING_INTERVAL_MS)
+
+wss.on("close", () => clearInterval(heartbeat))
+
 wss.on("connection", (socket) => {
 	const { envelopeDelivery } = resolveNetworkModule()
+
+	alive.add(socket)
+	socket.on("pong", () => alive.add(socket))
 
 	let context: ConnectionContext | undefined
 	let pending = Promise.resolve()
