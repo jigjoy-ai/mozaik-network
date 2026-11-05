@@ -9,18 +9,18 @@
 		"outDir": "./dist",
 		"rootDir": ".",
 		"strict": true,
-		"moduleResolution": "node",
-		"baseUrl": ".",
+		"moduleResolution": "bundler",
+		"types": ["node"],
 		"paths": {
-			"@application/*": ["src/application/*"],
-			"@domain/*": ["src/domain/*"],
-			"@infrastructure/*": ["src/infrastructure/*"],
-			"@types/*": ["types/*"]
+			"@application/*": ["./src/application/*"],
+			"@domain/*": ["./src/domain/*"],
+			"@infrastructure/*": ["./src/infrastructure/*"],
+			"src/*": ["./src/*"]
 		},
 		"esModuleInterop": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true
 	},
-	"include": ["src"],
+	"include": ["src", "tests"],
 	"exclude": ["node_modules", "dist"]
 }

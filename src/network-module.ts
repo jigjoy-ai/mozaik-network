@@ -13,20 +13,21 @@ import { EnvelopeRepository } from "@domain/envelope-repositories"
 import { InMemoryEnvelopeRepository } from "@infrastructure/in-memory-envelope-repository"
 import { InMemoryPeerRepository } from "@infrastructure/in-memory-peer-repository"
 import { PeerJoined, PeerLeft } from "@domain/built-in-envelopers"
+import { Accounts } from "@domain/accounts"
+import { Metering } from "@domain/metering"
+import { Peer } from "@domain/peer"
+import { OpenAccounts, Unmetered } from "@infrastructure/open-access"
 
 type NetworkModule = {
 	networkRepository: NetworkRepository
 	peerRepository: PeerRepository
 	envelopeRepository: EnvelopeRepository
 	envelopeDelivery: WebSocketEnvelopeDelivery
+	accounts: Accounts
+	metering: Metering
 }
 
-type NetworkModuleConfig = {
-	networkRepository?: NetworkRepository
-	peerRepository?: PeerRepository
-	envelopeRepository?: EnvelopeRepository
-	envelopeDelivery?: WebSocketEnvelopeDelivery
-}
+type NetworkModuleConfig = Partial<NetworkModule>
 
 let module: NetworkModule | undefined
 
@@ -35,16 +36,14 @@ function initNetworkModule(config: NetworkModuleConfig = {}) {
 		throw new Error("Network module already initialized")
 	}
 
-	const networkRepository = config.networkRepository ?? new InMemoryNetworkRepository()
-	const envelopeDelivery = config.envelopeDelivery ?? new WebSocketEnvelopeDelivery()
-	const peerRepository = config.peerRepository ?? new InMemoryPeerRepository()
-	const envelopeRepository = config.envelopeRepository ?? new InMemoryEnvelopeRepository()
-
 	module = {
-		networkRepository,
-		peerRepository,
-		envelopeRepository,
-		envelopeDelivery,
+		networkRepository: config.networkRepository ?? new InMemoryNetworkRepository(),
+		peerRepository: config.peerRepository ?? new InMemoryPeerRepository(),
+		envelopeRepository: config.envelopeRepository ?? new InMemoryEnvelopeRepository(),
+		envelopeDelivery: config.envelopeDelivery ?? new WebSocketEnvelopeDelivery(),
+		// Self-hosted by default: no keys, nothing counted.
+		accounts: config.accounts ?? new OpenAccounts(),
+		metering: config.metering ?? new Unmetered(),
 	}
 }
 
@@ -56,16 +55,20 @@ export function resolveNetworkModule(): NetworkModule {
 	return module
 }
 
-const createNetwork = async (name: string) => {
-	const { networkRepository } = resolveNetworkModule()
-	const createNetworkUseCase = new CreateNetworkUseCase(networkRepository)
-	return await createNetworkUseCase.execute(name)
+const accountFor = async (apiKey: string | undefined): Promise<string | undefined> => {
+	return await resolveNetworkModule().accounts.accountFor(apiKey)
 }
 
-const createPeer = async (name: string, role: PeerRole, capabilities: readonly string[] = []) => {
+const createNetwork = async (name: string, ownerId: string) => {
+	const { networkRepository } = resolveNetworkModule()
+	const createNetworkUseCase = new CreateNetworkUseCase(networkRepository)
+	return await createNetworkUseCase.execute(name, ownerId)
+}
+
+const createPeer = async (name: string, role: PeerRole, capabilities: readonly string[], ownerId: string) => {
 	const { peerRepository } = resolveNetworkModule()
 	const createPeerUseCase = new CreatePeerUseCase(peerRepository)
-	return await createPeerUseCase.execute(name, role, capabilities)
+	return await createPeerUseCase.execute(name, role, capabilities, ownerId)
 }
 
 function createEnvelopeDistribution(): EnvelopeDistribution {
@@ -73,10 +76,17 @@ function createEnvelopeDistribution(): EnvelopeDistribution {
 	return new EnvelopeDistribution(envelopeDelivery)
 }
 
-const connect = async (networkId: string, peerId: string): Promise<PeerJoined> => {
+function createConnectPeerUseCase(): ConnectPeerUseCase {
 	const { networkRepository, peerRepository } = resolveNetworkModule()
-	const connectPeerUseCase = new ConnectPeerUseCase(networkRepository, peerRepository, createEnvelopeDistribution())
-	return await connectPeerUseCase.execute(networkId, peerId)
+	return new ConnectPeerUseCase(networkRepository, peerRepository, createEnvelopeDistribution())
+}
+
+const identify = async (token: unknown): Promise<Peer> => {
+	return await createConnectPeerUseCase().identify(token)
+}
+
+const connect = async (networkId: string, peer: Peer): Promise<PeerJoined> => {
+	return await createConnectPeerUseCase().execute(networkId, peer)
 }
 
 const disconnect = async (networkId: string, peerId: string): Promise<PeerLeft> => {
@@ -86,9 +96,9 @@ const disconnect = async (networkId: string, peerId: string): Promise<PeerLeft> 
 }
 
 const send = async (networkId: string, senderId: string, message: string) => {
-	const { networkRepository } = resolveNetworkModule()
-	const sendEnvelopeUseCase = new SendEnvelopeUseCase(networkRepository, createEnvelopeDistribution())
+	const { networkRepository, metering } = resolveNetworkModule()
+	const sendEnvelopeUseCase = new SendEnvelopeUseCase(networkRepository, createEnvelopeDistribution(), metering)
 	return await sendEnvelopeUseCase.execute(networkId, senderId, message)
 }
 
-export { createNetwork, createPeer, connect, disconnect, send, initNetworkModule }
+export { accountFor, createNetwork, createPeer, identify, connect, disconnect, send, initNetworkModule }
