@@ -6,7 +6,7 @@ Description: >
 Parameters:
   ImageUri:
     Type: String
-    Description: The image to run, e.g. 665767707372.dkr.ecr.eu-west-1.amazonaws.com/mozaik-network:<git sha>
+    Description: The image to run, e.g. <account>.dkr.ecr.eu-west-1.amazonaws.com/mozaik-network:<git sha>
   HostName:
     Type: String
     Default: network.app.jigjoy.ai
@@ -24,6 +24,16 @@ Parameters:
   RulePriority:
     Type: Number
     Default: 10
+  MozaikCloudUrl:
+    Type: String
+    Default: https://api.app.jigjoy.ai
+    Description: Where keys are checked and messages are reported (an account's free messages, then its balance)
+  ServiceTokenParameter:
+    Type: String
+    Default: /mozaik-network/service-token
+    Description: >
+      SSM SecureString holding the secret Mozaik Cloud takes usage reports with (its NETWORK_SERVICE_TOKEN).
+      Made once, outside this stack: aws ssm put-parameter --type SecureString --name <this> --value "$(openssl rand -hex 32)"
 
 Resources:
   Cluster:
@@ -48,6 +58,15 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      # The service token goes into the container as NETWORK_SERVICE_TOKEN; nothing else is read.
+      Policies:
+        - PolicyName: service-token
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParameters
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ServiceTokenParameter}
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -69,6 +88,10 @@ Resources:
             - ContainerPort: 3000
           Environment:
             - { Name: PORT, Value: "3000" }
+            - { Name: MOZAIK_CLOUD_URL, Value: !Ref MozaikCloudUrl }
+          Secrets:
+            - Name: NETWORK_SERVICE_TOKEN
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ServiceTokenParameter}
           LogConfiguration:
             LogDriver: awslogs
             Options:

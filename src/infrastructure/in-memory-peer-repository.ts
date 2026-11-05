@@ -1,21 +1,14 @@
 import { Peer } from "@domain/peer"
 import { PeerRepository } from "@domain/peer-repository"
-import { PeerRole } from "@domain/peer-role"
 
 export class InMemoryPeerRepository implements PeerRepository {
-	private peers: Peer[] = [
-		Peer.rehydrate({
-			manifest: { id: "1", name: "Peer 1", capabilities: [], role: "user" as PeerRole },
-			inbox: [],
-		}),
-	]
+	private readonly peers = new Map<string, Peer>()
 
 	async save(peer: Peer): Promise<void> {
-		this.peers.push(peer)
+		this.peers.set(peer.getId(), peer)
 	}
 
 	async findById(id: string): Promise<Peer | undefined> {
-		console.log(`Finding peer by id: ${id}`)
-		return this.peers.find((peer) => peer.getId() === id)
+		return this.peers.get(id)
 	}
 }

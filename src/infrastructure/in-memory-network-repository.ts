@@ -2,17 +2,17 @@ import { Network } from "@domain/network"
 import { NetworkRepository } from "@domain/network-repository"
 
 export class InMemoryNetworkRepository implements NetworkRepository {
-	private networks: Network[] = [Network.rehydrate({ id: "1", name: "Network 1", peerIds: [] })]
+	private readonly networks = new Map<string, Network>()
 
 	async save(network: Network): Promise<void> {
-		this.networks.push(network)
+		this.networks.set(network.getId(), network)
 	}
 
 	async findById(id: string): Promise<Network | undefined> {
-		return this.networks.find((network) => network.getId() === id)
+		return this.networks.get(id)
 	}
 
 	async delete(id: string): Promise<void> {
-		this.networks = this.networks.filter((network) => network.getId() !== id)
+		this.networks.delete(id)
 	}
 }

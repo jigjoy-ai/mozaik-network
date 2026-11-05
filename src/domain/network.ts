@@ -6,17 +6,21 @@ import { EnvelopeFactory } from "./envelope-factory"
 export type NetworkRecord = {
 	id: string
 	name: string
+	/** The account the network belongs to: it pays for the network's messages, and only its peers may join. */
+	ownerId: string
 	peerIds: string[]
 }
 
 export class Network {
 	private readonly id: string
 	private name: string
+	private readonly ownerId: string
 	private peerIds: string[]
 
-	private constructor(id: string, name: string, peerIds: string[] = []) {
+	private constructor(id: string, name: string, ownerId: string, peerIds: string[] = []) {
 		this.id = id
 		this.name = name
+		this.ownerId = ownerId
 		this.peerIds = [...peerIds]
 	}
 
@@ -26,6 +30,10 @@ export class Network {
 
 	getName(): string {
 		return this.name
+	}
+
+	getOwnerId(): string {
+		return this.ownerId
 	}
 
 	getPeerIds(): string[] {
@@ -74,15 +82,16 @@ export class Network {
 		return {
 			id: this.id,
 			name: this.name,
+			ownerId: this.ownerId,
 			peerIds: this.getPeerIds(),
 		}
 	}
 
-	static create(name: string): Network {
-		return new Network(crypto.randomUUID(), name)
+	static create(name: string, ownerId: string): Network {
+		return new Network(crypto.randomUUID(), name, ownerId)
 	}
 
 	static rehydrate(record: NetworkRecord): Network {
-		return new Network(record.id, record.name, record.peerIds)
+		return new Network(record.id, record.name, record.ownerId, record.peerIds)
 	}
 }

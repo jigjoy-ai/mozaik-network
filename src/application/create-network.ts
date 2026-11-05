@@ -8,8 +8,8 @@ export class CreateNetworkUseCase {
 		this.networkRepository = networkRepository
 	}
 
-	async execute(name: string): Promise<Network> {
-		const network = Network.create(name)
+	async execute(name: string, ownerId: string): Promise<Network> {
+		const network = Network.create(name, ownerId)
 
 		await this.networkRepository.save(network)
 		return network
