@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
-import { InviteLink } from "./invite-link"
+import { InviteLink } from "@client/invite-link"
 
 /** The network this machine's sessions join: where it is, the invite that lets them in, and what it is called. */
 export type SavedNetwork = InviteLink & { name?: string }

@@ -1,12 +1,12 @@
 import { join, leave, sendMessage } from "@client/index"
 import { NetworkClient } from "@client/network-client"
 import { Peer } from "@client/peer/peer"
-import { readInviteLink, writeInviteLink } from "./invite-link"
+import { readInviteLink, writeInviteLink } from "@client/invite-link"
 import { mozaikCloudKey } from "./mozaik-cloud-key"
 import { NetworkSettings, SavedNetwork } from "./network-settings"
 import { NetworkView } from "./network-view"
 import { claudeCodePolicy } from "./rules"
-import { SendLimit } from "./send-limit"
+import { SendLimit } from "@client/send-limit"
 
 type Membership = { peer: Peer; networkId: string }
 

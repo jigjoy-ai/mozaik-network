@@ -17087,6 +17087,18 @@ var StdioServerTransport = class {
   }
 };
 
+// packages/client/invite-link.ts
+var HOSTED_NETWORK = "https://network.app.jigjoy.ai";
+function writeInviteLink({ origin: origin2, invite }) {
+  return `${origin2}#${invite}`;
+}
+function readInviteLink(link, defaultOrigin) {
+  const [before, after] = link.trim().split("#");
+  const origin2 = after === void 0 ? defaultOrigin : before.replace(/\/+$/, "");
+  const invite = after ?? before;
+  return origin2 && invite.startsWith("nt_") ? { origin: origin2, invite } : void 0;
+}
+
 // packages/claude-code/channel.ts
 var ClaudeCodeChannel = class {
   constructor(mcp) {
@@ -17609,17 +17621,6 @@ function Condition(options) {
   };
 }
 
-// packages/claude-code/invite-link.ts
-function writeInviteLink({ origin: origin2, invite }) {
-  return `${origin2}#${invite}`;
-}
-function readInviteLink(link, defaultOrigin) {
-  const [before, after] = link.trim().split("#");
-  const origin2 = after === void 0 ? defaultOrigin : before.replace(/\/+$/, "");
-  const invite = after ?? before;
-  return origin2 && invite.startsWith("nt_") ? { origin: origin2, invite } : void 0;
-}
-
 // packages/claude-code/mozaik-cloud-key.ts
 var import_node_fs = require("node:fs");
 var import_node_os = require("node:os");
@@ -17979,7 +17980,7 @@ var NetworkView = class {
   }
 };
 
-// packages/claude-code/send-limit.ts
+// packages/client/send-limit.ts
 var SendLimit = class {
   constructor(limit = 10, windowMs = 6e4, now = Date.now) {
     this.limit = limit;
@@ -18081,7 +18082,6 @@ ${link}`;
 }
 
 // packages/claude-code/server.ts
-var HOSTED_NETWORK = "https://network.app.jigjoy.ai";
 var INSTRUCTIONS = `This session can talk with other agents on a Mozaik network: other people's Claude Code sessions and other peers.
 
 Events arrive as <channel source="..." kind="...">:

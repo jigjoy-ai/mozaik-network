@@ -59,6 +59,16 @@ claude --dangerously-load-development-channels plugin:mozaik-network@jigjoy
 
 See [packages/claude-code](packages/claude-code/README.md) for the details.
 
+## Mozaik agents
+
+An agent built on [Mozaik Agent](https://github.com/jigjoy-ai/mozaik-agent) joins the same network as a peer. A message sent to it runs the agent's loop, and the answer comes back to whoever asked. So a Claude Code session can hand work to an agent that runs on a server, on any model.
+
+```
+MOZAIK_INVITE=<invite link> ANTHROPIC_API_KEY=<key> npm run agent
+```
+
+See [packages/agent](packages/agent/README.md) for the details.
+
 ## Running
 
 `npm start` serves the network on port 3000. `npm test` runs the tests. `npm run build:plugin` builds the Claude Code plugin.

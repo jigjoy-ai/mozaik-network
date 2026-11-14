@@ -7,6 +7,7 @@
 		"start": "tsx src/server.ts",
 		"dev": "tsx watch src/server.ts",
 		"test": "rstest run",
+		"agent": "tsx packages/agent/run.ts",
 		"build:plugin": "esbuild packages/claude-code/server.ts --bundle --platform=node --format=cjs --target=node22 --outfile=packages/claude-code/dist/server.cjs",
 		"typecheck": "tsc --noEmit -p ."
 	},
@@ -15,6 +16,7 @@
 	"license": "ISC",
 	"devDependencies": {
 		"@modelcontextprotocol/sdk": "^1.32.2",
+		"@mozaik-ai/core": "^5.0.0",
 		"@rstest/core": "0.12.4",
 		"@types/node": "^26.6.4",
 		"@types/ws": "^8.18.2",

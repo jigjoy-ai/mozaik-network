@@ -1,5 +1,8 @@
 export type InviteLink = { origin: string; invite: string }
 
+/** The network JigJoy hosts: where a bare invite is for when nothing else is said. */
+export const HOSTED_NETWORK = "https://network.app.jigjoy.ai"
+
 /** An invite link is `<network origin>#<invite>`: one string says where the network is and lets its holder in. */
 export function writeInviteLink({ origin, invite }: InviteLink): string {
 	return `${origin}#${invite}`
