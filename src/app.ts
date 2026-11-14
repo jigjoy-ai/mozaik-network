@@ -1,5 +1,18 @@
-import { accountFor, connect, createNetwork, createPeer, disconnect, identify, resolveNetworkModule, send } from "src/network-module"
+import {
+	acceptInvite,
+	accountFor,
+	connect,
+	createInvite,
+	createNetwork,
+	createPeer,
+	disconnect,
+	identify,
+	resolveNetworkModule,
+	revokeInvites,
+	send,
+} from "src/network-module"
 import { RequestError } from "@application/errors"
+import { readInvite } from "@application/invite-tokens"
 import { PeerRole } from "@domain/peer-role"
 import { createServer, IncomingMessage, Server, ServerResponse } from "node:http"
 import { WebSocket, WebSocketServer } from "ws"
@@ -15,6 +28,11 @@ const PING_INTERVAL_MS = 30_000
 /** The largest HTTP body and WebSocket frame taken; everything lives in one task's memory. */
 const MAX_BODY_BYTES = 64 * 1024
 const MAX_FRAME_BYTES = 256 * 1024
+
+/** What an older connection is closed with when a newer one of the same peer takes its place: a client shouldn't come back on it. */
+const REPLACED_CLOSE_CODE = 4001
+
+const INVITES_PATH = /^\/networks\/([^/]+)\/invites$/
 
 const httpStatus: Record<RequestError["code"], number> = {
 	unauthorized: 401,
@@ -61,19 +79,37 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		return
 	}
 
-	if (req.method !== "POST") {
-		sendJson(res, 405, { error: "Method not allowed" })
-		return
-	}
+	const invitesOf = req.url?.match(INVITES_PATH)?.[1]
 
-	if (req.url !== "/networks" && req.url !== "/peers") {
+	if (req.url !== "/networks" && req.url !== "/peers" && !invitesOf) {
 		sendJson(res, 404, { error: "Not found" })
 		return
 	}
 
-	const accountId = await accountFor(bearer(req))
+	// Invites can also be revoked; everything else is only made.
+	if (req.method !== "POST" && !(req.method === "DELETE" && invitesOf)) {
+		sendJson(res, 405, { error: "Method not allowed" })
+		return
+	}
+
+	const credential = bearer(req)
+	// A peer can be made with an invite in place of an API key: on the account of the invite's network, for that network only.
+	const invitedTo = req.url === "/peers" && readInvite(credential) ? await acceptInvite(credential) : undefined
+	const accountId = invitedTo ? invitedTo.getOwnerId() : await accountFor(credential)
 	if (!accountId) {
 		sendJson(res, 401, { error: "A Mozaik Cloud API key is required (Authorization: Bearer <key>)" })
+		return
+	}
+
+	if (invitesOf && req.method === "DELETE") {
+		await revokeInvites(invitesOf, accountId)
+		sendJson(res, 200, { networkId: invitesOf, revoked: true })
+		return
+	}
+
+	if (invitesOf) {
+		// The invite is shown only now: whoever holds it can make peers in this network.
+		sendJson(res, 201, { networkId: invitesOf, invite: await createInvite(invitesOf, accountId) })
 		return
 	}
 
@@ -94,7 +130,9 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		}
 
 		const network = await createNetwork(name.trim(), accountId)
-		sendJson(res, 201, network.toRecord())
+		// The hashes of its invites stay here.
+		const { inviteHashes, ...record } = network.toRecord()
+		sendJson(res, 201, record)
 		return
 	}
 
@@ -114,9 +152,10 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		? capabilities.filter((item): item is string => typeof item === "string")
 		: []
 
-	const { peer, token } = await createPeer(name.trim(), role as PeerRole, capabilityList, accountId)
-	// The token is shown only now: the peer joins networks with it.
-	sendJson(res, 201, { ...peer.getManifest(), token })
+	const networkId = invitedTo?.getId()
+	const { peer, token } = await createPeer(name.trim(), role as PeerRole, capabilityList, accountId, networkId)
+	// The token is shown only now: the peer joins networks with it. A guest is told which network its invite is for.
+	sendJson(res, 201, { ...peer.getManifest(), token, networkId })
 }
 
 /** An HTTP server with the WebSocket server on it; not yet listening. */
@@ -178,6 +217,9 @@ export function createApp(): Server {
 			context = undefined
 
 			envelopeDelivery.detach(networkId, socket)
+			// A newer connection of the same peer has taken this one's place: the peer hasn't left.
+			if (envelopeDelivery.isAttached(networkId, peerId)) return
+
 			await disconnect(networkId, peerId)
 		}
 
@@ -193,7 +235,7 @@ export function createApp(): Server {
 					const peer = await identify(message.token)
 					const networkId = message.networkId
 
-					envelopeDelivery.attach(networkId, socket, peer.getId())
+					const replaced = envelopeDelivery.attach(networkId, socket, peer.getId())
 
 					try {
 						await connect(networkId, peer)
@@ -203,15 +245,20 @@ export function createApp(): Server {
 						throw error
 					}
 
+					replaced?.close(REPLACED_CLOSE_CODE, "Replaced by a newer connection")
+
 					break
 				}
 
 				case "message.send": {
 					if (!context) throw new RequestError("forbidden", "Join a network first (peer.join)")
 					if (typeof message.payload !== "string") throw new Error("payload must be a string")
+					if (message.to !== undefined && typeof message.to !== "string") {
+						throw new Error("to must be a peer id")
+					}
 
 					// The network and sender are the ones this connection joined as, whatever the message says.
-					await send(context.networkId, context.peerId, message.payload)
+					await send(context.networkId, context.peerId, message.payload, message.to)
 
 					break
 				}
@@ -219,6 +266,11 @@ export function createApp(): Server {
 				case "peer.leave":
 					await leave()
 					socket.close(1000, "Left network")
+					break
+
+				// A client asks whether the connection still works: one that died in silence gets no answer.
+				case "ping":
+					socket.send(JSON.stringify({ type: "pong" }))
 					break
 
 				default:

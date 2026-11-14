@@ -12,10 +12,14 @@ import { PeerRepository } from "@domain/peer-repository"
 import { EnvelopeRepository } from "@domain/envelope-repositories"
 import { InMemoryEnvelopeRepository } from "@infrastructure/in-memory-envelope-repository"
 import { InMemoryPeerRepository } from "@infrastructure/in-memory-peer-repository"
-import { PeerJoined, PeerLeft } from "@domain/built-in-envelopers"
+import { PeerLeft, PeerWelcomed } from "@domain/built-in-envelopers"
 import { Accounts } from "@domain/accounts"
 import { Metering } from "@domain/metering"
 import { Peer } from "@domain/peer"
+import { Network } from "@domain/network"
+import { CreateInviteUseCase } from "@application/create-invite"
+import { RevokeInvitesUseCase } from "@application/revoke-invites"
+import { AcceptInviteUseCase } from "@application/accept-invite"
 import { OpenAccounts, Unmetered } from "@infrastructure/open-access"
 
 type NetworkModule = {
@@ -65,10 +69,34 @@ const createNetwork = async (name: string, ownerId: string) => {
 	return await createNetworkUseCase.execute(name, ownerId)
 }
 
-const createPeer = async (name: string, role: PeerRole, capabilities: readonly string[], ownerId: string) => {
+const createInvite = async (networkId: string, ownerId: string): Promise<string> => {
+	const { networkRepository } = resolveNetworkModule()
+	const createInviteUseCase = new CreateInviteUseCase(networkRepository)
+	return await createInviteUseCase.execute(networkId, ownerId)
+}
+
+const revokeInvites = async (networkId: string, ownerId: string): Promise<void> => {
+	const { networkRepository } = resolveNetworkModule()
+	const revokeInvitesUseCase = new RevokeInvitesUseCase(networkRepository)
+	return await revokeInvitesUseCase.execute(networkId, ownerId)
+}
+
+const acceptInvite = async (invite: unknown): Promise<Network> => {
+	const { networkRepository } = resolveNetworkModule()
+	const acceptInviteUseCase = new AcceptInviteUseCase(networkRepository)
+	return await acceptInviteUseCase.execute(invite)
+}
+
+const createPeer = async (
+	name: string,
+	role: PeerRole,
+	capabilities: readonly string[],
+	ownerId: string,
+	networkId?: string,
+) => {
 	const { peerRepository } = resolveNetworkModule()
 	const createPeerUseCase = new CreatePeerUseCase(peerRepository)
-	return await createPeerUseCase.execute(name, role, capabilities, ownerId)
+	return await createPeerUseCase.execute(name, role, capabilities, ownerId, networkId)
 }
 
 function createEnvelopeDistribution(): EnvelopeDistribution {
@@ -77,15 +105,15 @@ function createEnvelopeDistribution(): EnvelopeDistribution {
 }
 
 function createConnectPeerUseCase(): ConnectPeerUseCase {
-	const { networkRepository, peerRepository } = resolveNetworkModule()
-	return new ConnectPeerUseCase(networkRepository, peerRepository, createEnvelopeDistribution())
+	const { networkRepository, peerRepository, envelopeRepository } = resolveNetworkModule()
+	return new ConnectPeerUseCase(networkRepository, peerRepository, envelopeRepository, createEnvelopeDistribution())
 }
 
 const identify = async (token: unknown): Promise<Peer> => {
 	return await createConnectPeerUseCase().identify(token)
 }
 
-const connect = async (networkId: string, peer: Peer): Promise<PeerJoined> => {
+const connect = async (networkId: string, peer: Peer): Promise<PeerWelcomed> => {
 	return await createConnectPeerUseCase().execute(networkId, peer)
 }
 
@@ -95,10 +123,27 @@ const disconnect = async (networkId: string, peerId: string): Promise<PeerLeft> 
 	return await disconnectPeerUseCase.execute(networkId, peerId)
 }
 
-const send = async (networkId: string, senderId: string, message: string) => {
-	const { networkRepository, metering } = resolveNetworkModule()
-	const sendEnvelopeUseCase = new SendEnvelopeUseCase(networkRepository, createEnvelopeDistribution(), metering)
-	return await sendEnvelopeUseCase.execute(networkId, senderId, message)
+const send = async (networkId: string, senderId: string, message: string, recipientId?: string) => {
+	const { networkRepository, envelopeRepository, metering } = resolveNetworkModule()
+	const sendEnvelopeUseCase = new SendEnvelopeUseCase(
+		networkRepository,
+		envelopeRepository,
+		createEnvelopeDistribution(),
+		metering,
+	)
+	return await sendEnvelopeUseCase.execute(networkId, senderId, message, recipientId)
 }
 
-export { accountFor, createNetwork, createPeer, identify, connect, disconnect, send, initNetworkModule }
+export {
+	accountFor,
+	createNetwork,
+	createInvite,
+	revokeInvites,
+	acceptInvite,
+	createPeer,
+	identify,
+	connect,
+	disconnect,
+	send,
+	initNetworkModule,
+}

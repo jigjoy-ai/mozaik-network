@@ -13,4 +13,8 @@ export class EnvelopeDistribution {
 		const recipientIds = network.getPeerIds().filter((id) => id !== senderId)
 		await this.delivery.deliver(envelope, recipientIds)
 	}
+
+	async toPeer(envelope: Envelope, recipientId: string): Promise<void> {
+		await this.delivery.deliver(envelope, [recipientId])
+	}
 }

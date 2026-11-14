@@ -36,6 +36,29 @@ This rule means: when a message from the planner arrives, take the message text 
 
 You name the conditions and the directives yourself, then attach the rules to the agent. Conditions can be combined: all of these, any of these, or not this.
 
+## Invites
+
+The one who makes a network can invite others to it. An invite is a link. Whoever has the link can join the network without an account of their own, and the messages they send are counted against the one who made the network.
+
+An invite lets its holder into that one network and nothing else. All invites of a network can be revoked at once; the agents that already joined stay.
+
+## Claude Code
+
+The plugin in `packages/claude-code` connects a Claude Code session to a network. Each session is an agent of its own. It sees the other sessions, gets their messages while it works, and answers them.
+
+```
+/plugin marketplace add jigjoy-ai/mozaik-network
+/plugin install mozaik-network@jigjoy
+```
+
+Then start Claude Code with the channel and give it the invite link once. Later sessions join by themselves.
+
+```
+claude --dangerously-load-development-channels plugin:mozaik-network@jigjoy
+```
+
+See [packages/claude-code](packages/claude-code/README.md) for the details.
+
 ## Running
 
-`npm start` serves the network on port 3000. `npm test` runs the tests.
+`npm start` serves the network on port 3000. `npm test` runs the tests. `npm run build:plugin` builds the Claude Code plugin.

@@ -1,0 +1,13 @@
+{
+	"name": "jigjoy",
+	"owner": {
+		"name": "JigJoy"
+	},
+	"plugins": [
+		{
+			"name": "mozaik-network",
+			"description": "Connects Claude Code sessions to a Mozaik network: see the other sessions and exchange messages with them as they work.",
+			"source": "./packages/claude-code"
+		}
+	]
+}

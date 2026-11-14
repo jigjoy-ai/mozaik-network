@@ -1,4 +1,4 @@
-import { MessageSent, PeerJoined, PeerLeft } from "./built-in-envelopers"
+import { MessageSent, PeerJoined, PeerLeft, PeerWelcomed } from "./built-in-envelopers"
 import { Envelope } from "./envelope"
 import { PeerManifest } from "./peer-manifest"
 
@@ -22,7 +22,12 @@ export class EnvelopeFactory {
 		return this.create(networkId, peerId, "peer.left", { peerId })
 	}
 
-	static messageSent(networkId: string, senderId: string, message: string): MessageSent {
-		return this.create(networkId, senderId, "message.sent", { message })
+	static peerWelcomed(networkId: string, peerId: string, peers: PeerManifest[], messages: Envelope[]): PeerWelcomed {
+		return this.create(networkId, peerId, "peer.welcomed", { peers, messages })
+	}
+
+	static messageSent(networkId: string, senderId: string, message: string, recipientId?: string): MessageSent {
+		const payload = recipientId === undefined ? { message } : { message, to: recipientId }
+		return this.create(networkId, senderId, "message.sent", payload)
 	}
 }
