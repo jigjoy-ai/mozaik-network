@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@rstest/core"
-import { readInviteLink, writeInviteLink } from "../../packages/claude-code/invite-link"
+import { readInviteLink, writeInviteLink } from "@client/invite-link"
 import { Message, NetworkView } from "../../packages/claude-code/network-view"
-import { SendLimit } from "../../packages/claude-code/send-limit"
+import { SendLimit } from "@client/send-limit"
 
 const message = (id: string, senderId = "p1"): Message => ({ id, senderId, text: id, at: new Date(0) })
 

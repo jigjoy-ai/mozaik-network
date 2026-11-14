@@ -3,15 +3,14 @@ import { basename } from "node:path"
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
+import { HOSTED_NETWORK } from "@client/invite-link"
 import { ClaudeCodeChannel } from "./channel"
 import { NetworkSession } from "./network-session"
 import { NetworkSettings } from "./network-settings"
 import { NetworkView } from "./network-view"
 import { registerDirectives } from "./rules"
-import { SendLimit } from "./send-limit"
+import { SendLimit } from "@client/send-limit"
 import { networkTools } from "./tools"
-
-const HOSTED_NETWORK = "https://network.app.jigjoy.ai"
 
 const INSTRUCTIONS = `This session can talk with other agents on a Mozaik network: other people's Claude Code sessions and other peers.
 
