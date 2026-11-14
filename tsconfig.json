@@ -15,6 +15,7 @@
 			"@application/*": ["./src/application/*"],
 			"@domain/*": ["./src/domain/*"],
 			"@infrastructure/*": ["./src/infrastructure/*"],
+			"src/*": ["./src/*"],
 			"@client/*": ["./packages/client/*"]
 		},
 		"esModuleInterop": true,

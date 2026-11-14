@@ -52,14 +52,16 @@ beforeEach(() => {
 	metering.limit = Infinity
 })
 
-async function post(path: string, body: unknown, key?: string) {
+async function request(method: string, path: string, body: unknown, key?: string) {
 	const res = await fetch(`http://${base}${path}`, {
-		method: "POST",
+		method,
 		headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
 		body: typeof body === "string" ? body : JSON.stringify(body),
 	})
 	return { status: res.status, body: (await res.json()) as Record<string, any> }
 }
+
+const post = (path: string, body: unknown, key?: string) => request("POST", path, body, key)
 
 async function network(key: string): Promise<string> {
 	return (await post("/networks", { name: "team" }, key)).body.id
@@ -67,6 +69,10 @@ async function network(key: string): Promise<string> {
 
 async function peer(key: string, name: string): Promise<{ id: string; token: string }> {
 	return (await post("/peers", { name, role: "agent" }, key)).body as { id: string; token: string }
+}
+
+async function invite(key: string, networkId: string): Promise<string> {
+	return (await post(`/networks/${networkId}/invites`, {}, key)).body.invite
 }
 
 type Client = { socket: WebSocket; next(type: string): Promise<Record<string, any>>; received: Record<string, any>[] }
@@ -106,6 +112,8 @@ async function joined(networkId: string, token: string): Promise<Client> {
 	return c
 }
 
+const messagesTo = (c: Client) => c.received.filter((m) => m.type === "message.sent")
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 100))
 
 describe("HTTP", () => {
@@ -124,6 +132,41 @@ describe("HTTP", () => {
 	test("bodies are limited in size and must be JSON", async () => {
 		expect((await post("/networks", { name: "x".repeat(70_000) }, "pk_a")).status).toBe(413)
 		expect((await post("/networks", "{not json", "pk_a")).status).toBe(400)
+	})
+
+	test("an invite is made by the network's owner only, and is shown once", async () => {
+		const networkId = await network("pk_a")
+
+		const { status, body } = await post(`/networks/${networkId}/invites`, {}, "pk_a")
+		expect(status).toBe(201)
+		expect(body.invite).toMatch(new RegExp(`^nt_${networkId}\\.`))
+
+		expect((await post(`/networks/${networkId}/invites`, {})).status).toBe(401)
+		expect((await post(`/networks/${networkId}/invites`, {}, "pk_b")).status).toBe(404)
+		expect((await post("/networks", { name: "team" }, "pk_a")).body.inviteHashes).toBeUndefined()
+	})
+
+	test("an invite makes peers for its network, in place of an API key, and nothing else", async () => {
+		const networkId = await network("pk_a")
+		const guest = await invite("pk_a", networkId)
+
+		const { status, body } = await post("/peers", { name: "guest", role: "agent" }, guest)
+		expect(status).toBe(201)
+		expect(body.networkId).toBe(networkId)
+		expect(body.token).toMatch(new RegExp(`^pt_${body.id}\\.`))
+
+		expect((await post("/peers", { name: "guest", role: "agent" }, `nt_${networkId}.wrong`)).status).toBe(401)
+		expect((await post("/networks", { name: "theirs" }, guest)).status).toBe(401)
+		expect((await post(`/networks/${networkId}/invites`, {}, guest)).status).toBe(401)
+	})
+
+	test("revoked invites make no more peers", async () => {
+		const networkId = await network("pk_a")
+		const guest = await invite("pk_a", networkId)
+
+		expect((await request("DELETE", `/networks/${networkId}/invites`, {}, "pk_b")).status).toBe(404)
+		expect((await request("DELETE", `/networks/${networkId}/invites`, {}, "pk_a")).status).toBe(200)
+		expect((await post("/peers", { name: "guest", role: "agent" }, guest)).status).toBe(401)
 	})
 })
 
@@ -185,6 +228,75 @@ describe("WebSocket", () => {
 		metering.limit = Infinity
 		a.socket.send(JSON.stringify({ type: "message.send", payload: "again" }))
 		expect((await b.next("message.sent")).payload).toEqual({ message: "again" })
+	})
+
+	test("a guest joins the network it was invited to and no other, and its messages are counted against the owner", async () => {
+		const [networkId, another] = await Promise.all([network("pk_a"), network("pk_a")])
+		const host = await joined(networkId, (await peer("pk_a", "host")).token)
+		const guest = await post("/peers", { name: "guest", role: "agent" }, await invite("pk_a", networkId))
+
+		const elsewhere = await client()
+		elsewhere.socket.send(JSON.stringify({ type: "peer.join", networkId: another, token: guest.body.token }))
+		expect(await elsewhere.next("error")).toMatchObject({ code: "not_found", message: "Network not found" })
+
+		const g = await joined(networkId, guest.body.token)
+		g.socket.send(JSON.stringify({ type: "message.send", payload: "hi" }))
+
+		expect((await host.next("message.sent")).senderId).toBe(guest.body.id)
+		expect(metering.sent.get("account-a")).toBe(1)
+	})
+
+	test("a peer that joins is told who is here and what was said lately", async () => {
+		const networkId = await network("pk_a")
+		const [one, two] = await Promise.all([peer("pk_a", "one"), peer("pk_a", "two")])
+		const a = await joined(networkId, one.token)
+		a.socket.send(JSON.stringify({ type: "message.send", payload: "before you came" }))
+		await settle()
+
+		const b = await joined(networkId, two.token)
+		const welcome = await b.next("peer.welcomed")
+
+		expect(welcome.payload.peers.map((p: { name: string }) => p.name)).toEqual(["one", "two"])
+		expect(welcome.payload.messages).toMatchObject([{ senderId: one.id, payload: { message: "before you came" } }])
+	})
+
+	test("a message to one peer reaches only that peer, and isn't kept for those who join later", async () => {
+		const networkId = await network("pk_a")
+		const [one, two, three, four] = await Promise.all(["one", "two", "three", "four"].map((n) => peer("pk_a", n)))
+		const a = await joined(networkId, one.token)
+		const b = await joined(networkId, two.token)
+		const c = await joined(networkId, three.token)
+
+		a.socket.send(JSON.stringify({ type: "message.send", payload: "just you", to: two.id }))
+		expect((await b.next("message.sent")).payload).toEqual({ message: "just you", to: two.id })
+
+		a.socket.send(JSON.stringify({ type: "message.send", payload: "anyone?", to: four.id }))
+		expect(await a.next("error")).toMatchObject({ code: "not_found", message: "Peer not in this network" })
+
+		const d = await joined(networkId, four.token)
+		expect((await d.next("peer.welcomed")).payload.messages).toEqual([])
+		expect(messagesTo(c)).toEqual([])
+		expect(metering.sent.get("account-a")).toBe(1)
+	})
+
+	test("a peer's newer connection takes the place of its older one, and the peer hasn't left", async () => {
+		const networkId = await network("pk_a")
+		const [one, two] = await Promise.all([peer("pk_a", "one"), peer("pk_a", "two")])
+		const older = await joined(networkId, one.token)
+		const b = await joined(networkId, two.token)
+		await older.next("peer.joined")
+		const closed = new Promise<number>((resolve) => older.socket.once("close", resolve))
+
+		const newer = await client()
+		newer.socket.send(JSON.stringify({ type: "peer.join", networkId, token: one.token }))
+		await newer.next("peer.welcomed")
+		expect(await closed).toBe(4001)
+
+		b.socket.send(JSON.stringify({ type: "message.send", payload: "still there?" }))
+		expect((await newer.next("message.sent")).payload).toEqual({ message: "still there?" })
+		await settle()
+		expect(messagesTo(older)).toEqual([])
+		expect(b.received.filter((m) => m.type === "peer.left" || m.type === "peer.joined")).toEqual([])
 	})
 
 	test("malformed frames are answered, not fatal", async () => {

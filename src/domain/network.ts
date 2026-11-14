@@ -9,6 +9,8 @@ export type NetworkRecord = {
 	/** The account the network belongs to: it pays for the network's messages, and only its peers may join. */
 	ownerId: string
 	peerIds: string[]
+	/** The hashes of the secrets in the network's invites: whoever holds an invite may make a peer here. */
+	inviteHashes: string[]
 }
 
 export class Network {
@@ -16,12 +18,20 @@ export class Network {
 	private name: string
 	private readonly ownerId: string
 	private peerIds: string[]
+	private inviteHashes: string[]
 
-	private constructor(id: string, name: string, ownerId: string, peerIds: string[] = []) {
+	private constructor(
+		id: string,
+		name: string,
+		ownerId: string,
+		peerIds: string[] = [],
+		inviteHashes: string[] = [],
+	) {
 		this.id = id
 		this.name = name
 		this.ownerId = ownerId
 		this.peerIds = [...peerIds]
+		this.inviteHashes = [...inviteHashes]
 	}
 
 	getId(): string {
@@ -42,6 +52,18 @@ export class Network {
 
 	hasPeer(peerId: string): boolean {
 		return this.peerIds.includes(peerId)
+	}
+
+	getInviteHashes(): string[] {
+		return [...this.inviteHashes]
+	}
+
+	invite(inviteHash: string): void {
+		this.inviteHashes.push(inviteHash)
+	}
+
+	revokeInvites(): void {
+		this.inviteHashes = []
 	}
 
 	connect(manifest: PeerManifest): PeerJoined {
@@ -84,6 +106,7 @@ export class Network {
 			name: this.name,
 			ownerId: this.ownerId,
 			peerIds: this.getPeerIds(),
+			inviteHashes: this.getInviteHashes(),
 		}
 	}
 
@@ -92,6 +115,6 @@ export class Network {
 	}
 
 	static rehydrate(record: NetworkRecord): Network {
-		return new Network(record.id, record.name, record.ownerId, record.peerIds)
+		return new Network(record.id, record.name, record.ownerId, record.peerIds, record.inviteHashes)
 	}
 }

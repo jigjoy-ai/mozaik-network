@@ -1,19 +1,37 @@
 import { Envelope } from "@domain/envelope"
 import { EnvelopeRepository } from "@domain/envelope-repositories"
 
+/** How many envelopes are kept for each network: they live in this task's memory, so the oldest make room. */
+const KEPT_PER_NETWORK = 100
+
 export class InMemoryEnvelopeRepository implements EnvelopeRepository {
-	private envelopes: Envelope[] = []
+	private readonly envelopes = new Map<string, Envelope[]>()
 
-	save(envelope: Envelope): Promise<void> {
-		this.envelopes.push(envelope)
-		return Promise.resolve()
+	async save(envelope: Envelope): Promise<void> {
+		const kept = this.envelopes.get(envelope.getNetworkId()) ?? []
+
+		kept.push(envelope)
+		if (kept.length > KEPT_PER_NETWORK) kept.shift()
+
+		this.envelopes.set(envelope.getNetworkId(), kept)
 	}
 
-	findById(id: string): Promise<Envelope | undefined> {
-		return Promise.resolve(this.envelopes.find((envelope) => envelope.getId() === id))
+	async findById(id: string): Promise<Envelope | undefined> {
+		for (const kept of this.envelopes.values()) {
+			const envelope = kept.find((item) => item.getId() === id)
+			if (envelope) return envelope
+		}
+
+		return undefined
 	}
 
-	findByNetworkId(networkId: string, options: { offset: number; limit: number }): Promise<Envelope[]> {
-		return Promise.resolve(this.envelopes.filter((envelope) => envelope.getNetworkId() === networkId))
+	async findByNetworkId(networkId: string, options: { offset: number; limit: number }): Promise<Envelope[]> {
+		const kept = this.envelopes.get(networkId) ?? []
+		return kept.slice(options.offset, options.offset + options.limit)
+	}
+
+	async findRecent(networkId: string, limit: number): Promise<Envelope[]> {
+		const kept = this.envelopes.get(networkId) ?? []
+		return limit > 0 ? kept.slice(-limit) : []
 	}
 }
