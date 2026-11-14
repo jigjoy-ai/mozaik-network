@@ -3,7 +3,8 @@ FROM node:24-slim
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# Only what the server runs with: tsx runs the TypeScript as it is, so it is a dependency, not a build tool.
+RUN npm ci --omit=dev --no-audit --no-fund
 
 COPY tsconfig.json ./
 COPY src ./src
