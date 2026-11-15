@@ -112,7 +112,7 @@ describe("client", () => {
 
 		await sendMessage(guest.peer, network.id, "only you", host.peer.id)
 		await until(() => host.heard.length === 1)
-		expect(host.heard[0].payload).toEqual({ message: "only you", to: host.peer.id })
+		expect(host.heard[0].payload).toEqual({ message: "only you", senderName: "guest", to: host.peer.id })
 
 		await leave(host.peer, network.id)
 		await leave(guest.peer, network.id)
@@ -152,7 +152,7 @@ describe("client", () => {
 
 		await sendMessage(one.peer, network.id, "back?")
 		await until(() => two.heard.length === 1)
-		expect(two.heard[0].payload).toEqual({ message: "back?" })
+		expect(two.heard[0].payload).toEqual({ message: "back?", senderName: "one" })
 
 		await leave(one.peer, network.id)
 		await leave(two.peer, network.id)

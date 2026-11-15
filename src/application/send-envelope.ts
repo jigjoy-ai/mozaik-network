@@ -4,6 +4,10 @@ import { EnvelopeFactory } from "@domain/envelope-factory"
 import { EnvelopeRepository } from "@domain/envelope-repositories"
 import { Metering } from "@domain/metering"
 import { NetworkRepository } from "@domain/network-repository"
+import { PeerManifest } from "@domain/peer-manifest"
+
+/** Who sends: the peer this connection joined as. */
+export type Sender = Pick<PeerManifest, "id" | "name">
 
 export class SendEnvelopeUseCase {
 	constructor(
@@ -16,12 +20,13 @@ export class SendEnvelopeUseCase {
 	/**
 	 * One message sent is one message counted, against the network's owner, however many peers it reaches.
 	 * With a recipient it reaches that peer only, and isn't kept for those who join later.
+	 * The sender's name goes with the message, so it is still known after the sender has left.
 	 */
-	async execute(networkId: string, senderId: string, message: string, recipientId?: string): Promise<void> {
+	async execute(networkId: string, sender: Sender, message: string, recipientId?: string): Promise<void> {
 		const network = await this.networks.findById(networkId)
 		if (!network) throw new RequestError("not_found", "Network not found")
 
-		const envelope = EnvelopeFactory.messageSent(networkId, senderId, message, recipientId)
+		const envelope = EnvelopeFactory.messageSent(networkId, sender, message, recipientId)
 		network.validateEnvelope(envelope)
 
 		if (recipientId !== undefined && !network.hasPeer(recipientId)) {
@@ -40,6 +45,6 @@ export class SendEnvelopeUseCase {
 		}
 
 		await this.envelopes.save(envelope)
-		await this.distribution.toOtherPeers(network, envelope, senderId)
+		await this.distribution.toOtherPeers(network, envelope, sender.id)
 	}
 }

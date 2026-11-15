@@ -4,7 +4,7 @@ import { ConditionSpecification } from "@client/peer/condition-specification"
 import { Envelope } from "@client/peer/envelope"
 import { InputResolver } from "@client/peer/input-resolver"
 
-type MessageSent = Envelope<{ message: string; to?: string }>
+type MessageSent = Envelope<{ message: string; senderName?: string; to?: string }>
 
 /** What a peer asked of the agent: the text, who asked, and in which network. */
 export type Request = { networkId: string; senderId: string; text: string }

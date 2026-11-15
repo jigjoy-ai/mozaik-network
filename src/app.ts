@@ -22,6 +22,7 @@ import { WebSocket, WebSocketServer } from "ws"
 type ConnectionContext = {
 	networkId: string
 	peerId: string
+	peerName: string
 }
 
 /** How often each socket is pinged; one that hasn't answered since the last ping is closed. Load balancers drop idle connections (AWS's after 60 seconds). */
@@ -30,6 +31,10 @@ const PING_INTERVAL_MS = 30_000
 /** The largest HTTP body and WebSocket frame taken; everything lives in one task's memory. */
 const MAX_BODY_BYTES = 64 * 1024
 const MAX_FRAME_BYTES = 256 * 1024
+
+/** A peer's name goes with every message it sends and is kept with it: on one line, and cut to this length (clients that send longer names still join). */
+const MAX_PEER_NAME_LENGTH = 64
+const CONTROL_CHARACTERS = /\p{Cc}/u
 
 /** What an older connection is closed with when a newer one of the same peer takes its place: a client shouldn't come back on it. */
 const REPLACED_CLOSE_CODE = 4001
@@ -166,6 +171,11 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		return
 	}
 
+	if (CONTROL_CHARACTERS.test(name)) {
+		sendJson(res, 400, { error: "name must be on one line" })
+		return
+	}
+
 	if (typeof role !== "string" || !peerRoles.has(role as PeerRole)) {
 		sendJson(res, 400, { error: "role must be user, agent, or external" })
 		return
@@ -176,7 +186,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		: []
 
 	const networkId = invitedTo?.getId()
-	const { peer, token } = await createPeer(name.trim(), role as PeerRole, capabilityList, accountId, networkId)
+	const { peer, token } = await createPeer([...name.trim()].slice(0, MAX_PEER_NAME_LENGTH).join("").trim(), role as PeerRole, capabilityList, accountId, networkId)
 	// The token is shown only now: the peer joins networks with it. A guest is told which network its invite is for.
 	sendJson(res, 201, { ...peer.getManifest(), token, networkId })
 }
@@ -262,7 +272,7 @@ export function createApp(): Server {
 
 					try {
 						await connect(networkId, peer)
-						context = { networkId, peerId: peer.getId() }
+						context = { networkId, peerId: peer.getId(), peerName: peer.getManifest().name }
 					} catch (error) {
 						envelopeDelivery.detach(networkId, socket)
 						throw error
@@ -281,7 +291,7 @@ export function createApp(): Server {
 					}
 
 					// The network and sender are the ones this connection joined as, whatever the message says.
-					await send(context.networkId, context.peerId, message.payload, message.to)
+					await send(context.networkId, { id: context.peerId, name: context.peerName }, message.payload, message.to)
 
 					break
 				}
