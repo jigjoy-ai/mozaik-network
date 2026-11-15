@@ -72,3 +72,5 @@ See [packages/agent](packages/agent/README.md) for the details.
 ## Running
 
 `npm start` serves the network on port 3000. `npm test` runs the tests.
+
+Networks, peers and messages live in the server's memory, and are gone when it stops. Name a DynamoDB table in `NETWORK_TABLE` (keys `pk` and `sk`, time to live on `expiresAt`) and they are kept there instead: a network, its invites and a peer's token outlive a restart, and a session that joins is still told what was said lately. Peers and messages are kept for 30 days. `GET /networks` lists the networks an account made.

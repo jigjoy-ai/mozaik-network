@@ -68,6 +68,43 @@ Resources:
                 Action: ssm:GetParameters
                 Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ServiceTokenParameter}
 
+  # Networks, peers and the latest messages: kept, so a deploy forgets none of them.
+  Table:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: mozaik-network
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      # Peers and messages are given a time to go; networks are not.
+      TimeToLiveSpecification: { AttributeName: expiresAt, Enabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+
+  # What the running task may do: read and write its own table, nothing else.
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: table
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem, dynamodb:Query]
+                Resource: !GetAtt Table.Arn
+
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -80,6 +117,7 @@ Resources:
         CpuArchitecture: ARM64
         OperatingSystemFamily: LINUX
       ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
       ContainerDefinitions:
         - Name: network
           Image: !Ref ImageUri
@@ -89,6 +127,8 @@ Resources:
           Environment:
             - { Name: PORT, Value: "3000" }
             - { Name: MOZAIK_CLOUD_URL, Value: !Ref MozaikCloudUrl }
+            - { Name: NETWORK_TABLE, Value: !Ref Table }
+            - { Name: AWS_REGION, Value: !Ref AWS::Region }
           Secrets:
             - Name: NETWORK_SERVICE_TOKEN
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ServiceTokenParameter}

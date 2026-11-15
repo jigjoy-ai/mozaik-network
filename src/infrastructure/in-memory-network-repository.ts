@@ -12,6 +12,10 @@ export class InMemoryNetworkRepository implements NetworkRepository {
 		return this.networks.get(id)
 	}
 
+	async findByOwner(ownerId: string): Promise<Network[]> {
+		return [...this.networks.values()].filter((network) => network.getOwnerId() === ownerId)
+	}
+
 	async delete(id: string): Promise<void> {
 		this.networks.delete(id)
 	}

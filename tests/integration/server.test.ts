@@ -56,7 +56,7 @@ async function request(method: string, path: string, body: unknown, key?: string
 	const res = await fetch(`http://${base}${path}`, {
 		method,
 		headers: { "content-type": "application/json", ...(key ? { authorization: `Bearer ${key}` } : {}) },
-		body: typeof body === "string" ? body : JSON.stringify(body),
+		body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
 	})
 	return { status: res.status, body: (await res.json()) as Record<string, any> }
 }
@@ -132,6 +132,19 @@ describe("HTTP", () => {
 	test("bodies are limited in size and must be JSON", async () => {
 		expect((await post("/networks", { name: "x".repeat(70_000) }, "pk_a")).status).toBe(413)
 		expect((await post("/networks", "{not json", "pk_a")).status).toBe(400)
+	})
+
+	test("an account lists the networks it made, without their invites", async () => {
+		const mine = (await post("/networks", { name: "listed" }, "pk_a")).body.id
+		await post(`/networks/${mine}/invites`, {}, "pk_a")
+		const theirs = (await post("/networks", { name: "theirs" }, "pk_b")).body.id
+
+		const { status, body } = await request("GET", "/networks", undefined, "pk_a")
+		expect(status).toBe(200)
+		const listed = body.networks.find((network: { id: string }) => network.id === mine)
+		expect(listed).toEqual({ id: mine, name: "listed", ownerId: "account-a", peerIds: [] })
+		expect(body.networks.some((network: { id: string }) => network.id === theirs)).toBe(false)
+		expect((await request("GET", "/networks", undefined)).status).toBe(401)
 	})
 
 	test("an invite is made by the network's owner only, and is shown once", async () => {
