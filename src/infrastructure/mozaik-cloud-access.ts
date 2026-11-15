@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto"
+import { createHash, timingSafeEqual } from "node:crypto"
 import { Accounts } from "@domain/accounts"
 import { Allowance, Metering } from "@domain/metering"
 
@@ -15,11 +15,13 @@ export class MozaikCloudAccounts implements Accounts {
 
 	constructor(
 		private readonly baseUrl: string,
-		private readonly options: { fetch?: Fetch; now?: () => number } = {},
+		private readonly options: { fetch?: Fetch; now?: () => number; serviceToken?: string } = {},
 	) {}
 
-	async accountFor(apiKey: string | undefined): Promise<string | undefined> {
+	async accountFor(apiKey: string | undefined, actingFor?: string): Promise<string | undefined> {
 		if (!apiKey) return undefined
+		// Mozaik Cloud itself, for someone signed in to it: its secret, and the account it acts for.
+		if (actingFor !== undefined) return actingFor && this.isService(apiKey) ? actingFor : undefined
 		const now = this.options.now?.() ?? Date.now()
 		// Kept by hash, never the key itself.
 		const hash = createHash("sha256").update(apiKey).digest("hex")
@@ -37,6 +39,12 @@ export class MozaikCloudAccounts implements Accounts {
 		const { accountId } = (await res.json()) as { accountId: string }
 		this.remember(hash, accountId, now + 5 * 60_000)
 		return accountId
+	}
+
+	private isService(credential: string): boolean {
+		const given = Buffer.from(credential)
+		const expected = Buffer.from(this.options.serviceToken ?? "")
+		return expected.length > 0 && given.length === expected.length && timingSafeEqual(given, expected)
 	}
 
 	private remember(hash: string, accountId: string | undefined, until: number): void {

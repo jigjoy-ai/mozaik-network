@@ -50,6 +50,20 @@ describe("MozaikCloudAccounts", () => {
 		await accounts.accountFor("pk_alice")
 		expect(calls).toHaveLength(3)
 	})
+
+	test("Mozaik Cloud acts for an account with its own secret, and nobody else does", async () => {
+		const { fetch, calls } = cloud({})
+		const accounts = new MozaikCloudAccounts("https://cloud", { fetch, serviceToken: "svc-secret" })
+
+		expect(await accounts.accountFor("svc-secret", "user_alice")).toBe("user_alice")
+		// A key, a wrong secret, or no account named: no account, and the key is not even asked about.
+		expect(await accounts.accountFor("pk_alice", "user_bob")).toBeUndefined()
+		expect(await accounts.accountFor("svc-wrong!", "user_alice")).toBeUndefined()
+		expect(await accounts.accountFor("svc-secret", "")).toBeUndefined()
+		expect(calls).toHaveLength(0)
+		// With no secret configured nobody acts for anyone.
+		expect(await new MozaikCloudAccounts("https://cloud", { fetch }).accountFor("", "user_alice")).toBeUndefined()
+	})
 })
 
 describe("MozaikCloudMetering", () => {

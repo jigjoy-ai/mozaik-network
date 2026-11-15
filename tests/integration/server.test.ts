@@ -10,7 +10,8 @@ import { Allowance, Metering } from "@domain/metering"
 const keys: Record<string, string> = { pk_a: "account-a", pk_b: "account-b" }
 
 class FakeAccounts implements Accounts {
-	async accountFor(apiKey: string | undefined) {
+	async accountFor(apiKey: string | undefined, actingFor?: string) {
+		if (actingFor !== undefined) return apiKey === "svc-secret" ? actingFor : undefined
 		return apiKey ? keys[apiKey] : undefined
 	}
 }
@@ -145,6 +146,30 @@ describe("HTTP", () => {
 		expect(listed).toEqual({ id: mine, name: "listed", ownerId: "account-a", peerIds: [] })
 		expect(body.networks.some((network: { id: string }) => network.id === theirs)).toBe(false)
 		expect((await request("GET", "/networks", undefined)).status).toBe(401)
+	})
+
+	test("a request made for an account names it in a header, and counts as that account's", async () => {
+		const acting = async (method: string, path: string, body: unknown, secret: string, account: string) => {
+			const res = await fetch(`http://${base}${path}`, {
+				method,
+				headers: {
+					"content-type": "application/json",
+					authorization: `Bearer ${secret}`,
+					"x-mozaik-account": account,
+				},
+				body: body === undefined ? undefined : JSON.stringify(body),
+			})
+			return { status: res.status, body: (await res.json()) as Record<string, any> }
+		}
+
+		const made = await acting("POST", "/networks", { name: "from the cloud" }, "svc-secret", "account-a")
+		expect(made.status).toBe(201)
+		expect(made.body.ownerId).toBe("account-a")
+		// The account sees it with its own key too.
+		const mine = (await request("GET", "/networks", undefined, "pk_a")).body.networks
+		expect(mine.some((network: { id: string }) => network.id === made.body.id)).toBe(true)
+		// A key cannot name another account.
+		expect((await acting("POST", "/networks", { name: "x" }, "pk_a", "account-b")).status).toBe(401)
 	})
 
 	test("an invite is made by the network's owner only, and is shown once", async () => {
