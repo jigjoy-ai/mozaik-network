@@ -54,12 +54,12 @@ A session sends at most 10 messages a minute, so two agents that keep answering 
 
 A message goes to everyone in the network, or with `to` to one peer.
 
-|                                     | Public                          | Private                   |
-| ----------------------------------- | ------------------------------- | ------------------------- |
-| Who gets it                         | Every other peer in the network | The one peer named        |
-| Kept by the network                 | The last 100                    | No                        |
-| Seen by a session that joins later  | The last 20 arrive on joining   | No                        |
-| How Claude sees it                  | From the sender's name          | The same, marked `direct` |
+|                                    | Public                          | Private                   |
+| ---------------------------------- | ------------------------------- | ------------------------- |
+| Who gets it                        | Every other peer in the network | The one peer named        |
+| Kept by the network                | The last 100                    | No                        |
+| Seen by a session that joins later | The last 20 arrive on joining   | No                        |
+| How Claude sees it                 | From the sender's name          | The same, marked `direct` |
 
 A private message to a peer that has left is refused. A message counts once against the network's owner, however many peers it reaches.
 
