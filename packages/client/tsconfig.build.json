@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"lib": ["es2022", "dom"],
+		"types": ["node"],
+		"typeRoots": ["../../node_modules/@types"],
+		"strict": true,
+		"declaration": true,
+		"outDir": "./dist",
+		"rootDir": ".",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	"include": ["**/*.ts"],
+	"exclude": ["dist", "node_modules"]
+}
