@@ -4,6 +4,7 @@ import {
 	connect,
 	createInvite,
 	createNetwork,
+	listNetworks,
 	createPeer,
 	disconnect,
 	identify,
@@ -13,6 +14,7 @@ import {
 } from "src/network-module"
 import { RequestError } from "@application/errors"
 import { readInvite } from "@application/invite-tokens"
+import { NetworkRecord } from "@domain/network"
 import { PeerRole } from "@domain/peer-role"
 import { createServer, IncomingMessage, Server, ServerResponse } from "node:http"
 import { WebSocket, WebSocketServer } from "ws"
@@ -44,6 +46,13 @@ const httpStatus: Record<RequestError["code"], number> = {
 const peerRoles = new Set<PeerRole>(["user", "agent", "external"])
 
 class BodyTooLarge extends Error {}
+
+function withoutInvites({
+	inviteHashes: _inviteHashes,
+	...record
+}: NetworkRecord): Omit<NetworkRecord, "inviteHashes"> {
+	return record
+}
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
 	res.writeHead(status, { "Content-Type": "application/json" })
@@ -86,8 +95,10 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		return
 	}
 
-	// Invites can also be revoked; everything else is only made.
-	if (req.method !== "POST" && !(req.method === "DELETE" && invitesOf)) {
+	const listing = req.method === "GET" && req.url === "/networks"
+
+	// Networks can also be listed and invites revoked; everything else is only made.
+	if (req.method !== "POST" && !(req.method === "DELETE" && invitesOf) && !listing) {
 		sendJson(res, 405, { error: "Method not allowed" })
 		return
 	}
@@ -98,6 +109,13 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 	const accountId = invitedTo ? invitedTo.getOwnerId() : await accountFor(credential)
 	if (!accountId) {
 		sendJson(res, 401, { error: "A Mozaik Cloud API key is required (Authorization: Bearer <key>)" })
+		return
+	}
+
+	if (listing) {
+		const networks = await listNetworks(accountId)
+		// The hashes of their invites stay here.
+		sendJson(res, 200, { networks: networks.map((network) => withoutInvites(network.toRecord())) })
 		return
 	}
 
@@ -131,8 +149,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 
 		const network = await createNetwork(name.trim(), accountId)
 		// The hashes of its invites stay here.
-		const { inviteHashes, ...record } = network.toRecord()
-		sendJson(res, 201, record)
+		sendJson(res, 201, withoutInvites(network.toRecord()))
 		return
 	}
 

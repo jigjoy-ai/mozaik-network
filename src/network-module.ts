@@ -3,6 +3,7 @@ import { DisconnectPeerUseCase } from "@application/disconnect-peer"
 import { CreatePeerUseCase } from "@application/create-peer"
 import { InMemoryNetworkRepository } from "@infrastructure/in-memory-network-repository"
 import { CreateNetworkUseCase } from "@application/create-network"
+import { ListNetworksUseCase } from "@application/list-networks"
 import { PeerRole } from "@domain/peer-role"
 import { SendEnvelopeUseCase } from "@application/send-envelope"
 import { EnvelopeDistribution } from "@application/services/envelope-distribution"
@@ -67,6 +68,12 @@ const createNetwork = async (name: string, ownerId: string) => {
 	const { networkRepository } = resolveNetworkModule()
 	const createNetworkUseCase = new CreateNetworkUseCase(networkRepository)
 	return await createNetworkUseCase.execute(name, ownerId)
+}
+
+const listNetworks = async (ownerId: string): Promise<Network[]> => {
+	const { networkRepository } = resolveNetworkModule()
+	const listNetworksUseCase = new ListNetworksUseCase(networkRepository)
+	return await listNetworksUseCase.execute(ownerId)
 }
 
 const createInvite = async (networkId: string, ownerId: string): Promise<string> => {
@@ -137,6 +144,7 @@ const send = async (networkId: string, senderId: string, message: string, recipi
 export {
 	accountFor,
 	createNetwork,
+	listNetworks,
 	createInvite,
 	revokeInvites,
 	acceptInvite,
