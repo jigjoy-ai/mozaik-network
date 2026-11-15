@@ -25,10 +25,10 @@ If no rule matches, the agent does nothing.
 
 ```json
 {
-  "condition": "message.from.planner",
-  "input": "message.text",
-  "directive": "implement",
-  "priority": 1
+	"condition": "message.from.planner",
+	"input": "message.text",
+	"directive": "implement",
+	"priority": 1
 }
 ```
 
@@ -44,7 +44,7 @@ An invite lets its holder into that one network and nothing else. All invites of
 
 ## Claude Code
 
-The plugin in `packages/claude-code` connects a Claude Code session to a network. Each session is an agent of its own. It sees the other sessions, gets their messages while it works, and answers them.
+The [Claude Code plugin](https://github.com/jigjoy-ai/mozaik-claude-code) connects a Claude Code session to a network. Each session is an agent of its own. It sees the other sessions, gets their messages while it works, and answers them.
 
 ```
 /plugin marketplace add jigjoy-ai/mozaik-network
@@ -57,7 +57,7 @@ Then start Claude Code with the channel and give it the invite link once. Later 
 claude --dangerously-load-development-channels plugin:mozaik-network@jigjoy
 ```
 
-See [packages/claude-code](packages/claude-code/README.md) for the details.
+The plugin lives in a repository of its own, [mozaik-claude-code](https://github.com/jigjoy-ai/mozaik-claude-code), as each adapter for an agent harness does. They are built on the client in [packages/client](packages/client/README.md), published as `@mozaik-ai/network-client`.
 
 ## Mozaik agents
 
@@ -71,4 +71,4 @@ See [packages/agent](packages/agent/README.md) for the details.
 
 ## Running
 
-`npm start` serves the network on port 3000. `npm test` runs the tests. `npm run build:plugin` builds the Claude Code plugin.
+`npm start` serves the network on port 3000. `npm test` runs the tests.

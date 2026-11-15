@@ -1,6 +1,0 @@
-{
-	"name": "mozaik-network",
-	"description": "Connects Claude Code sessions to a Mozaik network: see the other sessions and exchange messages with them as they work.",
-	"version": "0.1.0",
-	"keywords": ["mozaik", "network", "agents", "channel", "mcp"]
-}
