@@ -130,10 +130,11 @@ describe("HTTP", () => {
 		expect(body.ownerId).toBeUndefined()
 	})
 
-	test("a peer's name is short and on one line: it goes with every message the peer sends", async () => {
-		expect((await post("/peers", { name: "x".repeat(65), role: "agent" }, "pk_a")).status).toBe(400)
+	test("a peer's name is on one line and cut to 64 characters: it goes with every message the peer sends", async () => {
 		expect((await post("/peers", { name: "two\nlines", role: "agent" }, "pk_a")).status).toBe(400)
-		expect((await post("/peers", { name: `  ${"x".repeat(64)}  `, role: "agent" }, "pk_a")).status).toBe(201)
+		const long = await post("/peers", { name: `  ${"x".repeat(70)}  `, role: "agent" }, "pk_a")
+		expect(long.status).toBe(201)
+		expect(long.body.name).toBe("x".repeat(64))
 	})
 
 	test("bodies are limited in size and must be JSON", async () => {

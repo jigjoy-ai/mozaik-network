@@ -32,7 +32,7 @@ const PING_INTERVAL_MS = 30_000
 const MAX_BODY_BYTES = 64 * 1024
 const MAX_FRAME_BYTES = 256 * 1024
 
-/** A peer's name goes with every message it sends and is kept with it: short, and on one line. */
+/** A peer's name goes with every message it sends and is kept with it: on one line, and cut to this length (clients that send longer names still join). */
 const MAX_PEER_NAME_LENGTH = 64
 const CONTROL_CHARACTERS = /\p{Cc}/u
 
@@ -171,8 +171,8 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		return
 	}
 
-	if (name.trim().length > MAX_PEER_NAME_LENGTH || CONTROL_CHARACTERS.test(name)) {
-		sendJson(res, 400, { error: `name must be at most ${MAX_PEER_NAME_LENGTH} characters, on one line` })
+	if (CONTROL_CHARACTERS.test(name)) {
+		sendJson(res, 400, { error: "name must be on one line" })
 		return
 	}
 
@@ -186,7 +186,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		: []
 
 	const networkId = invitedTo?.getId()
-	const { peer, token } = await createPeer(name.trim(), role as PeerRole, capabilityList, accountId, networkId)
+	const { peer, token } = await createPeer([...name.trim()].slice(0, MAX_PEER_NAME_LENGTH).join("").trim(), role as PeerRole, capabilityList, accountId, networkId)
 	// The token is shown only now: the peer joins networks with it. A guest is told which network its invite is for.
 	sendJson(res, 201, { ...peer.getManifest(), token, networkId })
 }
