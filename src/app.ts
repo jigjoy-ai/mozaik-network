@@ -32,6 +32,10 @@ const PING_INTERVAL_MS = 30_000
 const MAX_BODY_BYTES = 64 * 1024
 const MAX_FRAME_BYTES = 256 * 1024
 
+/** A peer's name goes with every message it sends and is kept with it: short, and on one line. */
+const MAX_PEER_NAME_LENGTH = 64
+const CONTROL_CHARACTERS = /\p{Cc}/u
+
 /** What an older connection is closed with when a newer one of the same peer takes its place: a client shouldn't come back on it. */
 const REPLACED_CLOSE_CODE = 4001
 
@@ -164,6 +168,11 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 
 	if (typeof name !== "string" || !name.trim()) {
 		sendJson(res, 400, { error: "name is required" })
+		return
+	}
+
+	if (name.trim().length > MAX_PEER_NAME_LENGTH || CONTROL_CHARACTERS.test(name)) {
+		sendJson(res, 400, { error: `name must be at most ${MAX_PEER_NAME_LENGTH} characters, on one line` })
 		return
 	}
 

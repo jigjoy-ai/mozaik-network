@@ -28,7 +28,7 @@ export class EnvelopeFactory {
 
 	static messageSent(
 		networkId: string,
-		sender: { id: string; name: string },
+		sender: Pick<PeerManifest, "id" | "name">,
 		message: string,
 		recipientId?: string,
 	): MessageSent {

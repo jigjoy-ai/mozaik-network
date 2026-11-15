@@ -4,9 +4,10 @@ import { EnvelopeFactory } from "@domain/envelope-factory"
 import { EnvelopeRepository } from "@domain/envelope-repositories"
 import { Metering } from "@domain/metering"
 import { NetworkRepository } from "@domain/network-repository"
+import { PeerManifest } from "@domain/peer-manifest"
 
 /** Who sends: the peer this connection joined as. */
-export type Sender = { readonly id: string; readonly name: string }
+export type Sender = Pick<PeerManifest, "id" | "name">
 
 export class SendEnvelopeUseCase {
 	constructor(

@@ -169,7 +169,7 @@ describe("stored envelopes", () => {
 		expect(page.map((envelope) => envelope.getId())).toEqual([second.getId(), third.getId()])
 	})
 
-	test("a message still names its sender after a restart, though the sender has left", async () => {
+	test("a message is read back with its sender's name after a restart", async () => {
 		const table = new MemoryTable()
 		await new StoredEnvelopeRepository(table).save(EnvelopeFactory.messageSent("network-1", ana, "hello"))
 

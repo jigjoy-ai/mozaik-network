@@ -10,6 +10,7 @@ export type PeerWelcomed = Envelope<"peer.welcomed", { peers: PeerManifest[]; me
 
 /**
  * With `to`, the message went to that peer only. `senderName` is the sender's name when it sent the message,
- * kept with it so those who join after the sender has left still know who said it.
+ * kept with it so those who join after the sender has left still know who said it. Messages kept from
+ * before names were sent with them have none.
  */
-export type MessageSent = Envelope<"message.sent", { message: string; senderName: string; to?: string }>
+export type MessageSent = Envelope<"message.sent", { message: string; senderName?: string; to?: string }>
