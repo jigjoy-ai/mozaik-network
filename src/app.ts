@@ -22,6 +22,7 @@ import { WebSocket, WebSocketServer } from "ws"
 type ConnectionContext = {
 	networkId: string
 	peerId: string
+	peerName: string
 }
 
 /** How often each socket is pinged; one that hasn't answered since the last ping is closed. Load balancers drop idle connections (AWS's after 60 seconds). */
@@ -262,7 +263,7 @@ export function createApp(): Server {
 
 					try {
 						await connect(networkId, peer)
-						context = { networkId, peerId: peer.getId() }
+						context = { networkId, peerId: peer.getId(), peerName: peer.getManifest().name }
 					} catch (error) {
 						envelopeDelivery.detach(networkId, socket)
 						throw error
@@ -281,7 +282,7 @@ export function createApp(): Server {
 					}
 
 					// The network and sender are the ones this connection joined as, whatever the message says.
-					await send(context.networkId, context.peerId, message.payload, message.to)
+					await send(context.networkId, { id: context.peerId, name: context.peerName }, message.payload, message.to)
 
 					break
 				}

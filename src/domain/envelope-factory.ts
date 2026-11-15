@@ -26,8 +26,13 @@ export class EnvelopeFactory {
 		return this.create(networkId, peerId, "peer.welcomed", { peers, messages })
 	}
 
-	static messageSent(networkId: string, senderId: string, message: string, recipientId?: string): MessageSent {
-		const payload = recipientId === undefined ? { message } : { message, to: recipientId }
-		return this.create(networkId, senderId, "message.sent", payload)
+	static messageSent(
+		networkId: string,
+		sender: { id: string; name: string },
+		message: string,
+		recipientId?: string,
+	): MessageSent {
+		const payload = { message, senderName: sender.name, ...(recipientId === undefined ? {} : { to: recipientId }) }
+		return this.create(networkId, sender.id, "message.sent", payload)
 	}
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "@rstest/core"
 import { Envelope } from "@domain/envelope"
+import { EnvelopeFactory } from "@domain/envelope-factory"
 import { Network } from "@domain/network"
 import { Peer } from "@domain/peer"
 import { StoredEnvelopeRepository } from "@infrastructure/stored-envelope-repository"
@@ -166,5 +167,14 @@ describe("stored envelopes", () => {
 
 		const page = await envelopes.findByNetworkId("network-1", { offset: 1, limit: 5 })
 		expect(page.map((envelope) => envelope.getId())).toEqual([second.getId(), third.getId()])
+	})
+
+	test("a message still names its sender after a restart, though the sender has left", async () => {
+		const table = new MemoryTable()
+		await new StoredEnvelopeRepository(table).save(EnvelopeFactory.messageSent("network-1", ana, "hello"))
+
+		const [found] = await new StoredEnvelopeRepository(table).findRecent("network-1", 20)
+		expect(found.getSenderId()).toBe("peer-ana")
+		expect(found.getPayload()).toEqual({ message: "hello", senderName: "ana@api" })
 	})
 })

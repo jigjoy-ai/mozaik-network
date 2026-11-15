@@ -5,7 +5,7 @@ import { InMemoryNetworkRepository } from "@infrastructure/in-memory-network-rep
 import { CreateNetworkUseCase } from "@application/create-network"
 import { ListNetworksUseCase } from "@application/list-networks"
 import { PeerRole } from "@domain/peer-role"
-import { SendEnvelopeUseCase } from "@application/send-envelope"
+import { SendEnvelopeUseCase, Sender } from "@application/send-envelope"
 import { EnvelopeDistribution } from "@application/services/envelope-distribution"
 import { NetworkRepository } from "@domain/network-repository"
 import { WebSocketEnvelopeDelivery } from "@infrastructure/web-socket-envelope-delivery"
@@ -130,7 +130,7 @@ const disconnect = async (networkId: string, peerId: string): Promise<PeerLeft> 
 	return await disconnectPeerUseCase.execute(networkId, peerId)
 }
 
-const send = async (networkId: string, senderId: string, message: string, recipientId?: string) => {
+const send = async (networkId: string, sender: Sender, message: string, recipientId?: string) => {
 	const { networkRepository, envelopeRepository, metering } = resolveNetworkModule()
 	const sendEnvelopeUseCase = new SendEnvelopeUseCase(
 		networkRepository,
@@ -138,7 +138,7 @@ const send = async (networkId: string, senderId: string, message: string, recipi
 		createEnvelopeDistribution(),
 		metering,
 	)
-	return await sendEnvelopeUseCase.execute(networkId, senderId, message, recipientId)
+	return await sendEnvelopeUseCase.execute(networkId, sender, message, recipientId)
 }
 
 export {
