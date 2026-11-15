@@ -60,8 +60,8 @@ export function resolveNetworkModule(): NetworkModule {
 	return module
 }
 
-const accountFor = async (apiKey: string | undefined): Promise<string | undefined> => {
-	return await resolveNetworkModule().accounts.accountFor(apiKey)
+const accountFor = async (credential: string | undefined, actingFor?: string): Promise<string | undefined> => {
+	return await resolveNetworkModule().accounts.accountFor(credential, actingFor)
 }
 
 const createNetwork = async (name: string, ownerId: string) => {

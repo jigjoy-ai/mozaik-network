@@ -31,7 +31,10 @@ const stored = table
 		}
 	: {}
 
-initNetworkModule({ ...stored, ...(cloudUrl ? { accounts: new MozaikCloudAccounts(cloudUrl), metering } : {}) })
+initNetworkModule({
+	...stored,
+	...(cloudUrl ? { accounts: new MozaikCloudAccounts(cloudUrl, { serviceToken }), metering } : {}),
+})
 
 const server = createApp().listen(PORT, () => {
 	console.log(

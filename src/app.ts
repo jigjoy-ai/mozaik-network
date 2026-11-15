@@ -34,6 +34,9 @@ const MAX_FRAME_BYTES = 256 * 1024
 /** What an older connection is closed with when a newer one of the same peer takes its place: a client shouldn't come back on it. */
 const REPLACED_CLOSE_CODE = 4001
 
+/** Names the account a request is made for, when Mozaik Cloud makes it with its own secret. */
+const ACTING_FOR_HEADER = "x-mozaik-account"
+
 const INVITES_PATH = /^\/networks\/([^/]+)\/invites$/
 
 const httpStatus: Record<RequestError["code"], number> = {
@@ -106,7 +109,10 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 	const credential = bearer(req)
 	// A peer can be made with an invite in place of an API key: on the account of the invite's network, for that network only.
 	const invitedTo = req.url === "/peers" && readInvite(credential) ? await acceptInvite(credential) : undefined
-	const accountId = invitedTo ? invitedTo.getOwnerId() : await accountFor(credential)
+	const actingFor = req.headers[ACTING_FOR_HEADER]
+	const accountId = invitedTo
+		? invitedTo.getOwnerId()
+		: await accountFor(credential, typeof actingFor === "string" ? actingFor : undefined)
 	if (!accountId) {
 		sendJson(res, 401, { error: "A Mozaik Cloud API key is required (Authorization: Bearer <key>)" })
 		return
