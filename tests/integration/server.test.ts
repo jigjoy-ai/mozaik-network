@@ -6,6 +6,8 @@ import { createApp } from "src/app"
 import { initNetworkModule } from "src/network-module"
 import { Accounts } from "@domain/accounts"
 import { Allowance, Metering } from "@domain/metering"
+import { Envelope } from "@domain/envelope"
+import { InMemoryEnvelopeRepository } from "@infrastructure/in-memory-envelope-repository"
 
 const keys: Record<string, string> = { pk_a: "account-a", pk_b: "account-b" }
 
@@ -31,13 +33,25 @@ class FakeMetering implements Metering {
 	}
 }
 
+class FaultInjectingEnvelopeRepository extends InMemoryEnvelopeRepository {
+	shouldThrowOnRecent = false
+
+	override async findRecent(networkId: string, limit: number): Promise<Envelope[]> {
+		if (this.shouldThrowOnRecent) {
+			throw new Error("Simulated storage failure on findRecent")
+		}
+		return super.findRecent(networkId, limit)
+	}
+}
+
 const metering = new FakeMetering()
+const envelopes = new FaultInjectingEnvelopeRepository()
 let server: Server
 let base: string
 const sockets: WebSocket[] = []
 
 beforeAll(async () => {
-	initNetworkModule({ accounts: new FakeAccounts(), metering })
+	initNetworkModule({ accounts: new FakeAccounts(), metering, envelopeRepository: envelopes })
 	server = createApp()
 	await new Promise<void>((resolve) => server.listen(0, resolve))
 	base = `127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -51,6 +65,7 @@ afterAll(async () => {
 beforeEach(() => {
 	metering.sent.clear()
 	metering.limit = Infinity
+	envelopes.shouldThrowOnRecent = false
 })
 
 async function request(method: string, path: string, body: unknown, key?: string) {
@@ -360,6 +375,69 @@ describe("WebSocket", () => {
 		await settle()
 		expect(messagesTo(older)).toEqual([])
 		expect(b.received.filter((m) => m.type === "peer.left" || m.type === "peer.joined")).toEqual([])
+	})
+
+	test("when connect fails on a reconnect, the older socket stays in the delivery map and still gets messages", async () => {
+		const networkId = await network("pk_a")
+		const [one, two] = await Promise.all([peer("pk_a", "one"), peer("pk_a", "two")])
+		const older = await joined(networkId, one.token)
+		const b = await joined(networkId, two.token)
+
+		envelopes.shouldThrowOnRecent = true
+		const newer = await client()
+		try {
+			newer.socket.send(JSON.stringify({ type: "peer.join", networkId, token: one.token }))
+			expect(await newer.next("error")).toMatchObject({
+				code: "invalid_request",
+				message: "Simulated storage failure on findRecent",
+			})
+		} finally {
+			envelopes.shouldThrowOnRecent = false
+		}
+
+		expect(older.socket.readyState).toBe(WebSocket.OPEN)
+
+		b.socket.send(JSON.stringify({ type: "message.send", payload: "still there after reconnect failure?" }))
+		expect((await older.next("message.sent")).payload).toEqual({
+			message: "still there after reconnect failure?",
+			senderName: "two",
+		})
+	})
+
+	test("closing a restored socket does not delete the network connections entry for remaining peers", async () => {
+		const networkId = await network("pk_a")
+		const [one, two, three] = await Promise.all([peer("pk_a", "one"), peer("pk_a", "two"), peer("pk_a", "three")])
+
+		// 1. Start with a network containing only one connected peer
+		const original = await joined(networkId, one.token)
+
+		// 2. Trigger a failed reconnect and restore its original socket
+		envelopes.shouldThrowOnRecent = true
+		const reconnecting = await client()
+		try {
+			reconnecting.socket.send(JSON.stringify({ type: "peer.join", networkId, token: one.token }))
+			expect(await reconnecting.next("error")).toMatchObject({ code: "invalid_request" })
+		} finally {
+			envelopes.shouldThrowOnRecent = false
+		}
+		expect(original.socket.readyState).toBe(WebSocket.OPEN)
+
+		// 3. Connect additional peers after restoration
+		const peerTwo = await joined(networkId, two.token)
+		const peerThree = await joined(networkId, three.token)
+
+		// 4. Close the restored original socket
+		const closed = new Promise((resolve) => original.socket.once("close", resolve))
+		original.socket.close(1000, "Normal closure")
+		await closed
+		await settle()
+
+		// 5. Verify the remaining peers can still exchange messages successfully
+		peerTwo.socket.send(JSON.stringify({ type: "message.send", payload: "can you hear me, three?" }))
+		expect((await peerThree.next("message.sent")).payload).toEqual({
+			message: "can you hear me, three?",
+			senderName: "two",
+		})
 	})
 
 	test("malformed frames are answered, not fatal", async () => {

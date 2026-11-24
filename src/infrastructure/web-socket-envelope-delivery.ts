@@ -31,7 +31,7 @@ export class WebSocketEnvelopeDelivery implements EnvelopeDelivery {
 			this.peerBySocket.delete(socket)
 			sockets.delete(socket)
 
-			if (sockets.size === 0) {
+			if (sockets.size === 0 && this.connections.get(networkId) === sockets) {
 				this.connections.delete(networkId)
 			}
 		})
