@@ -186,9 +186,10 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Pro
 		: []
 
 	const networkId = invitedTo?.getId()
+	const network = invitedTo && { id: invitedTo.getId(), name: invitedTo.getName() }
 	const { peer, token } = await createPeer([...name.trim()].slice(0, MAX_PEER_NAME_LENGTH).join("").trim(), role as PeerRole, capabilityList, accountId, networkId)
-	// The token is shown only now: the peer joins networks with it. A guest is told which network its invite is for.
-	sendJson(res, 201, { ...peer.getManifest(), token, networkId })
+	// The token is shown only now: the peer joins networks with it. A guest is told which network its invite is for, and its name.
+	sendJson(res, 201, { ...peer.getManifest(), token, networkId, network })
 }
 
 /** An HTTP server with the WebSocket server on it; not yet listening. */

@@ -128,6 +128,8 @@ describe("HTTP", () => {
 		expect(status).toBe(201)
 		expect(body.token).toMatch(new RegExp(`^pt_${body.id}\\.`))
 		expect(body.ownerId).toBeUndefined()
+		// Only a peer made with an invite is for one network.
+		expect(body.network).toBeUndefined()
 	})
 
 	test("a peer's name is on one line and cut to 64 characters: it goes with every message the peer sends", async () => {
@@ -198,6 +200,7 @@ describe("HTTP", () => {
 		const { status, body } = await post("/peers", { name: "guest", role: "agent" }, guest)
 		expect(status).toBe(201)
 		expect(body.networkId).toBe(networkId)
+		expect(body.network).toEqual({ id: networkId, name: "team" })
 		expect(body.token).toMatch(new RegExp(`^pt_${body.id}\\.`))
 
 		expect((await post("/peers", { name: "guest", role: "agent" }, `nt_${networkId}.wrong`)).status).toBe(401)
@@ -291,6 +294,18 @@ describe("WebSocket", () => {
 		expect(metering.sent.get("account-a")).toBe(1)
 	})
 
+	test("a guest is told the network's name when it is made and when it joins", async () => {
+		const networkId = (await post("/networks", { name: "Design review" }, "pk_a")).body.id
+		const guest = await post("/peers", { name: "guest", role: "agent" }, await invite("pk_a", networkId))
+		expect(guest.body.network).toEqual({ id: networkId, name: "Design review" })
+
+		const g = await joined(networkId, guest.body.token)
+		const welcome = await g.next("peer.welcomed")
+		expect(welcome.networkId).toBe(networkId)
+		expect(welcome.payload).toMatchObject({ network: { id: networkId, name: "Design review" }, messages: [] })
+		expect(welcome.payload.peers.map((p: { name: string }) => p.name)).toEqual(["guest"])
+	})
+
 	test("a peer that joins is told who is here and what was said lately", async () => {
 		const networkId = await network("pk_a")
 		const [one, two] = await Promise.all([peer("pk_a", "one"), peer("pk_a", "two")])
@@ -301,6 +316,7 @@ describe("WebSocket", () => {
 		const b = await joined(networkId, two.token)
 		const welcome = await b.next("peer.welcomed")
 
+		expect(welcome.payload.network).toEqual({ id: networkId, name: "team" })
 		expect(welcome.payload.peers.map((p: { name: string }) => p.name)).toEqual(["one", "two"])
 		expect(welcome.payload.messages).toMatchObject([{ senderId: one.id, payload: { message: "before you came" } }])
 	})
