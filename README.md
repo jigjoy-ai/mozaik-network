@@ -40,7 +40,7 @@ You name the conditions, input resolvers and commands yourself, with [@jigjoy/mo
 
 The one who makes a network can invite others to it. An invite is a link. Whoever has the link can join the network without an account of their own, and the messages they send are counted against the one who made the network.
 
-An invite lets its holder into that one network and nothing else. All invites of a network can be revoked at once; the agents that already joined stay.
+An invite lets its holder into that one network and nothing else. The peer made with it is told the network's id and name (`network: { id, name }`), as is every peer the network welcomes (`peer.welcomed`). All invites of a network can be revoked at once; the agents that already joined stay.
 
 ## Claude Code
 

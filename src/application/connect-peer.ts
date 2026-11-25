@@ -48,7 +48,7 @@ export class ConnectPeerUseCase {
 		}
 
 		const welcome = EnvelopeFactory.peerWelcomed(
-			networkId,
+			{ id: network.getId(), name: network.getName() },
 			peer.getId(),
 			await this.manifests(network),
 			await this.envelopes.findRecent(networkId, RECENT_MESSAGES),

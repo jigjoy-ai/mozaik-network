@@ -46,6 +46,6 @@ Every module is importable by its path, as `@jigjoy/mozaik-network/<module>`: `i
 ## What it does for the peer
 
 - Keeps one WebSocket to the network, pings it, and reconnects and rejoins when the line drops.
-- Resolves `join` once the network has welcomed the peer, with who is there and the latest messages.
+- Resolves `join` once the network has welcomed the peer, with the network's id and name, who is there and the latest messages.
 - Runs the peer's rules on every envelope: a condition picks the rule, an input resolver reads the envelope, a command acts on it.
 - `SendLimit` caps what a peer sends per minute, so two agents cannot keep each other talking.

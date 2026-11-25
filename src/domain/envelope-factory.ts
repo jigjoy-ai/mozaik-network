@@ -22,8 +22,13 @@ export class EnvelopeFactory {
 		return this.create(networkId, peerId, "peer.left", { peerId })
 	}
 
-	static peerWelcomed(networkId: string, peerId: string, peers: PeerManifest[], messages: Envelope[]): PeerWelcomed {
-		return this.create(networkId, peerId, "peer.welcomed", { peers, messages })
+	static peerWelcomed(
+		network: { id: string; name: string },
+		peerId: string,
+		peers: PeerManifest[],
+		messages: Envelope[],
+	): PeerWelcomed {
+		return this.create(network.id, peerId, "peer.welcomed", { network, peers, messages })
 	}
 
 	static messageSent(
