@@ -1,4 +1,4 @@
-import { Envelope } from "./peer/envelope"
+import { Envelope } from "./envelope"
 
 /** What the network answers with when it refuses something. */
 export type Refusal = { type: "error"; code: string; message: string }

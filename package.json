@@ -3,18 +3,19 @@
 	"version": "1.0.0",
 	"description": "",
 	"main": "index.js",
+	"workspaces": [
+		"packages/client"
+	],
 	"scripts": {
 		"start": "tsx src/server.ts",
 		"dev": "tsx watch src/server.ts",
 		"test": "rstest run",
-		"agent": "tsx packages/agent/run.ts",
 		"typecheck": "tsc --noEmit -p ."
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"@mozaik-ai/core": "^5.0.0",
 		"@rstest/core": "0.12.4",
 		"@types/node": "^26.6.4",
 		"@types/ws": "^8.18.2",

@@ -1,7 +1,6 @@
 import { Envelope } from "./envelope"
-import { BehaviorPolicy } from "./behavior-policy"
+import { applyPolicy, PolicyDefinition } from "@jigjoy/mozaik-rule-engine"
 import { PeerManifest } from "./peer-manifest"
-import { reactToMessage } from "../index"
 
 export type PeerRole = "agent" | "application" | "device"
 
@@ -11,10 +10,10 @@ export class Peer {
 	readonly token: string
 	/** The network the peer was invited to, when it was created with an invite. */
 	readonly invitedTo: string | undefined
-	private policy: BehaviorPolicy
+	private policy: PolicyDefinition
 	private manifest: PeerManifest
 
-	constructor(id: string, manifest: PeerManifest, policy: BehaviorPolicy, token: string, invitedTo?: string) {
+	constructor(id: string, manifest: PeerManifest, policy: PolicyDefinition, token: string, invitedTo?: string) {
 		this.id = id
 		this.policy = policy
 		this.manifest = manifest
@@ -22,7 +21,7 @@ export class Peer {
 		this.invitedTo = invitedTo
 	}
 
-	getPolicy(): BehaviorPolicy {
+	getPolicy(): PolicyDefinition {
 		return this.policy
 	}
 
@@ -31,6 +30,6 @@ export class Peer {
 	}
 
 	async receive(envelope: Envelope<any>): Promise<void> {
-		await reactToMessage(this, envelope.networkId, envelope)
+		await applyPolicy(this.policy, envelope)
 	}
 }

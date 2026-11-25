@@ -1,5 +1,5 @@
-import { Envelope } from "./peer/envelope"
-import { Peer } from "./peer/peer"
+import { Envelope } from "./envelope"
+import { Peer } from "./peer"
 import { Frame, Refusal, WebSocketTransport } from "./websocket-transport"
 
 /** How long the network is given to answer a join. */

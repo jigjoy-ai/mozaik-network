@@ -1,5 +1,5 @@
 {
-	"name": "@mozaik-ai/network-client",
+	"name": "@jigjoy/mozaik-network",
 	"version": "0.1.0",
 	"description": "Join a Mozaik network as a peer: connect, send and receive messages, and react to them by rules.",
 	"license": "MIT",
@@ -33,5 +33,11 @@
 	"publishConfig": {
 		"access": "public",
 		"registry": "https://registry.npmjs.org/"
+	},
+	"peerDependencies": {
+		"@jigjoy/mozaik-rule-engine": "^0.0.2"
+	},
+	"devDependencies": {
+		"@jigjoy/mozaik-rule-engine": "^0.0.2"
 	}
 }
