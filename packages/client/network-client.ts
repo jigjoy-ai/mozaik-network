@@ -1,7 +1,6 @@
-import { Peer } from "./peer/peer"
+import { Peer } from "./peer"
 import { Connection } from "./connection"
-import { BehaviorPolicy } from "./peer/behavior-policy"
-import { RuleDefinition } from "./peer/rule"
+import { PolicyDefinition } from "@jigjoy/mozaik-rule-engine"
 
 export type Network = {
 	id: string
@@ -11,16 +10,12 @@ export type CreateNetworkPayload = {
 	name: string
 }
 
-export type BehaviorPolicyDefinition = {
-	rules: RuleDefinition[]
-}
-
 export type CreatePeerPayload = {
 	name: string
 	capabilities: string[]
 	networkId?: string
 	role: "agent" | "user"
-	policy: BehaviorPolicyDefinition
+	policy: PolicyDefinition
 	/** In place of an API key: the peer is made for the invite's network, on its owner's account. */
 	invite?: string
 }
@@ -73,20 +68,19 @@ export class NetworkClient {
 	}
 
 	async createPeer(payload: CreatePeerPayload): Promise<Peer> {
-		const { name, role, capabilities } = payload
+		const { name, role, capabilities, policy, invite } = payload
 		const response = await this.post<{ id: string; token: string; networkId?: string }>(
 			"/peers",
 			{ name, role, capabilities },
-			payload.invite ?? this.apiKey,
+			invite ?? this.apiKey,
 		)
 
-		const policy = BehaviorPolicy.create(payload.policy)
 		return new Peer(
 			response.id,
 			{
 				id: response.id,
-				name: payload.name,
-				capabilities: payload.capabilities,
+				name: name,
+				capabilities: capabilities,
 			},
 			policy,
 			response.token,

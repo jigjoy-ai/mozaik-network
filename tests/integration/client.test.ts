@@ -5,18 +5,10 @@ import { Duplex } from "node:stream"
 import { createApp } from "src/app"
 import { initNetworkModule } from "src/network-module"
 import { Accounts } from "@domain/accounts"
-import {
-	directiveRegistry,
-	inputResolverRegistry,
-	join,
-	leave,
-	sendMessage,
-	specificationRegistry,
-} from "@client/index"
+import { commandRegistry, ConditionContract, conditionRegistry, inputResolverRegistry } from "@jigjoy/mozaik-rule-engine"
+import { join, leave, sendMessage } from "@client/index"
 import { NetworkClient } from "@client/network-client"
-import { ConditionSpecification } from "@client/peer/condition-specification"
-import { Envelope } from "@client/peer/envelope"
-import { Peer } from "@client/peer/peer"
+import { Envelope } from "@client/envelope"
 
 const keys: Record<string, string> = { pk_a: "account-a", pk_b: "account-b" }
 
@@ -26,7 +18,7 @@ class FakeAccounts implements Accounts {
 	}
 }
 
-class TypeIs extends ConditionSpecification {
+class TypeIs extends ConditionContract<Envelope<any>> {
 	constructor(private readonly type: string) {
 		super()
 	}
@@ -36,8 +28,8 @@ class TypeIs extends ConditionSpecification {
 	}
 }
 
-specificationRegistry.register("message.received", new TypeIs("message.sent"))
-specificationRegistry.register("request.refused", new TypeIs("error"))
+conditionRegistry.register("message.received", new TypeIs("message.sent"))
+conditionRegistry.register("request.refused", new TypeIs("error"))
 inputResolverRegistry.register("envelope", { resolve: async (envelope: Envelope<any>) => envelope })
 
 let server: Server
@@ -63,14 +55,8 @@ afterAll(async () => {
 async function listener(client: NetworkClient, name: string, invite?: string) {
 	const heard: Envelope<any>[] = []
 	const refused: Envelope<any>[] = []
-	directiveRegistry.register(`hear.${name}`, {
-		id: `hear.${name}`,
-		invoke: (envelope) => heard.push(envelope as Envelope<any>),
-	})
-	directiveRegistry.register(`refused.${name}`, {
-		id: `refused.${name}`,
-		invoke: (envelope) => refused.push(envelope as Envelope<any>),
-	})
+	commandRegistry.register(`hear.${name}`, { invoke: (envelope: Envelope<any>) => heard.push(envelope) })
+	commandRegistry.register(`refused.${name}`, { invoke: (envelope: Envelope<any>) => refused.push(envelope) })
 
 	const peer = await client.createPeer({
 		name,
@@ -79,8 +65,8 @@ async function listener(client: NetworkClient, name: string, invite?: string) {
 		invite,
 		policy: {
 			rules: [
-				{ condition: "message.received", input: "envelope", directive: `hear.${name}` },
-				{ condition: "request.refused", input: "envelope", directive: `refused.${name}` },
+				{ condition: "message.received", inputResolver: "envelope", command: `hear.${name}` },
+				{ condition: "request.refused", inputResolver: "envelope", command: `refused.${name}` },
 			],
 		},
 	})

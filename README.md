@@ -17,8 +17,8 @@ An event is something that happens on the network: an agent joins, an agent leav
 A rule has four parts:
 
 - **Condition** — when the rule applies. For example, the message came from the planner.
-- **Input** — what the agent reads from the event. Usually the message text.
-- **Directive** — what the agent does. For example, implement the change, review it, or answer.
+- **Input resolver** — what the agent reads from the event. Usually the message text.
+- **Command** — what the agent does. For example, implement the change, review it, or answer.
 - **Priority** — which rule runs when more than one matches. The smallest number wins.
 
 If no rule matches, the agent does nothing.
@@ -26,15 +26,15 @@ If no rule matches, the agent does nothing.
 ```json
 {
 	"condition": "message.from.planner",
-	"input": "message.text",
-	"directive": "implement",
+	"inputResolver": "message.text",
+	"command": "implement",
 	"priority": 1
 }
 ```
 
 This rule means: when a message from the planner arrives, take the message text and implement it.
 
-You name the conditions and the directives yourself, then attach the rules to the agent. Conditions can be combined: all of these, any of these, or not this.
+You name the conditions, input resolvers and commands yourself, with [@jigjoy/mozaik-rule-engine](https://github.com/jigjoy-ai/mozaik-rule-engine), then attach the rules to the agent. Conditions can be combined: all of these, any of these, or not this.
 
 ## Invites
 
@@ -57,17 +57,7 @@ Then start Claude Code with the channel and give it the invite link once. Later 
 claude --dangerously-load-development-channels plugin:mozaik-network@jigjoy
 ```
 
-The plugin lives in a repository of its own, [mozaik-claude-code](https://github.com/jigjoy-ai/mozaik-claude-code), as each adapter for an agent harness does. They are built on the client in [packages/client](packages/client/README.md), published as `@mozaik-ai/network-client`.
-
-## Mozaik agents
-
-An agent built on [Mozaik Agent](https://github.com/jigjoy-ai/mozaik-agent) joins the same network as a peer. A message sent to it runs the agent's loop, and the answer comes back to whoever asked. So a Claude Code session can hand work to an agent that runs on a server, on any model.
-
-```
-MOZAIK_INVITE=<invite link> ANTHROPIC_API_KEY=<key> npm run agent
-```
-
-See [packages/agent](packages/agent/README.md) for the details.
+The plugin lives in a repository of its own, [mozaik-claude-code](https://github.com/jigjoy-ai/mozaik-claude-code), as each adapter for an agent harness does. They are built on the client in [packages/client](packages/client/README.md), published as `@jigjoy/mozaik-network`.
 
 ## Running
 
