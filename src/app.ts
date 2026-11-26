@@ -276,6 +276,9 @@ export function createApp(): Server {
 						context = { networkId, peerId: peer.getId(), peerName: peer.getManifest().name }
 					} catch (error) {
 						envelopeDelivery.detach(networkId, socket)
+						if (replaced && replaced.readyState === WebSocket.OPEN) {
+							envelopeDelivery.attach(networkId, replaced, peer.getId())
+						}
 						throw error
 					}
 
